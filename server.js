@@ -55,12 +55,13 @@ app.get('/api/check-time', async (req, res) => {
             
             let matchedClient = null;
 
-            // 1. Hanapin muna gamit ang Voucher Code / Username kung ibinigay
-            if (voucherCode && voucherCode !== 'ACTIVE') {
+            // 1. Hanapin muna gamit ang Voucher Code / Username / AuthName sa active clients
+            if (voucherCode && voucherCode !== 'ACTIVE' && voucherCode !== 'INPUT CODE BELOW') {
                 matchedClient = clients.find(c => 
                     (c.name && c.name.toLowerCase() === voucherCode.toLowerCase()) || 
                     (c.username && c.username.toLowerCase() === voucherCode.toLowerCase()) ||
-                    (c.voucher && c.voucher.toLowerCase() === voucherCode.toLowerCase())
+                    (c.voucher && c.voucher.toLowerCase() === voucherCode.toLowerCase()) ||
+                    (c.authName && c.authName.toLowerCase() === voucherCode.toLowerCase())
                 );
             }
 
@@ -80,25 +81,14 @@ app.get('/api/check-time', async (req, res) => {
                 const remainingSeconds = matchedClient.remainingTime || matchedClient.duration || matchedClient.leftTime || matchedClient.time || 0;
                 return res.json({
                     success: true,
-                    mac: matchedClient.mac || clientMac,
+                    mac: matchedClient.mac || clientMac || "NOT_AVAILABLE",
                     ip: matchedClient.ip || clientIp,
                     remainingSeconds: remainingSeconds
                 });
             }
         }
 
-        // Fallback: Kung may-input na voucher code pero hindi pa lumabas sa active clients list ng Omada, 
-        // pwede nating ibalik ang default na oras (halimbawa: 1 oras o base sa klase ng voucher) para tumakbo ang timer.
-        if (voucherCode && voucherCode !== 'ACTIVE') {
-            return res.json({
-                success: true,
-                mac: clientMac || "MANUAL-VOUCHER",
-                ip: clientIp || "0.0.0.0",
-                remainingSeconds: 3600 // Default 1 hour fallback kung sakaling wala pa sa active client list
-            });
-        }
-
-        res.json({ success: false, message: 'Client not found in active session' });
+        res.json({ success: false, message: 'Client not found in active session. Siguraduhing konektado at nagamit na ang voucher.' });
 
     } catch (err) {
         console.error('Error fetching Omada data:', err.message);
