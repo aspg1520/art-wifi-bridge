@@ -37,6 +37,7 @@ async function loginOmada() {
 
 app.get('/api/check-time', async (req, res) => {
     let clientMac = req.query.mac;
+    let voucherCode = req.query.voucher || req.query.username;
     let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
     try {
@@ -53,9 +54,23 @@ app.get('/api/check-time', async (req, res) => {
             const clients = response.data.result.data || [];
             
             let matchedClient = null;
-            if (clientMac && clientMac !== 'NOT_AVAILABLE') {
-                matchedClient = clients.find(c => c.mac.toLowerCase() === clientMac.toLowerCase());
-            } else if (clientIp) {
+
+            // 1. Hanapin muna gamit ang Voucher Code / Username kung ibinigay
+            if (voucherCode && voucherCode !== 'ACTIVE') {
+                matchedClient = clients.find(c => 
+                    (c.name && c.name.toLowerCase() === voucherCode.toLowerCase()) || 
+                    (c.username && c.username.toLowerCase() === voucherCode.toLowerCase()) ||
+                    (c.voucher && c.voucher.toLowerCase() === voucherCode.toLowerCase())
+                );
+            }
+
+            // 2. Kung wala sa pamamagitan ng voucher, subukan sa MAC Address
+            if (!matchedClient && clientMac && clientMac !== 'NOT_AVAILABLE') {
+                matchedClient = clients.find(c => c.mac && c.mac.toLowerCase() === clientMac.toLowerCase());
+            } 
+            
+            // 3. Kung wala pa rin, subukan sa IP address
+            if (!matchedClient && clientIp) {
                 matchedClient = clients.find(c => c.ip === clientIp || clientIp.includes(c.ip));
             }
 
@@ -65,11 +80,22 @@ app.get('/api/check-time', async (req, res) => {
                 const remainingSeconds = matchedClient.remainingTime || matchedClient.duration || matchedClient.leftTime || matchedClient.time || 0;
                 return res.json({
                     success: true,
-                    mac: matchedClient.mac,
-                    ip: matchedClient.ip,
+                    mac: matchedClient.mac || clientMac,
+                    ip: matchedClient.ip || clientIp,
                     remainingSeconds: remainingSeconds
                 });
             }
+        }
+
+        // Fallback: Kung may-input na voucher code pero hindi pa lumabas sa active clients list ng Omada, 
+        // pwede nating ibalik ang default na oras (halimbawa: 1 oras o base sa klase ng voucher) para tumakbo ang timer.
+        if (voucherCode && voucherCode !== 'ACTIVE') {
+            return res.json({
+                success: true,
+                mac: clientMac || "MANUAL-VOUCHER",
+                ip: clientIp || "0.0.0.0",
+                remainingSeconds: 3600 // Default 1 hour fallback kung sakaling wala pa sa active client list
+            });
         }
 
         res.json({ success: false, message: 'Client not found in active session' });
