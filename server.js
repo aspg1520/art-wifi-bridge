@@ -1,10 +1,14 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const path = require('path');
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+// I-serve ang mga static files (tulad ng status.html, css, js) mula sa 'public' folder
+app.use(express.static(path.join(__dirname, 'public')));
 
 const OMADA_CONFIG = {
     baseUrl: 'https://62.72.47.203:8043',
@@ -33,7 +37,6 @@ async function loginOmada() {
 
 app.get('/api/check-time', async (req, res) => {
     let clientMac = req.query.mac;
-    // Kunin ang IP ng kumokonekta sakaling walang maipasang MAC sa URL
     let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
     try {
@@ -53,7 +56,6 @@ app.get('/api/check-time', async (req, res) => {
             if (clientMac && clientMac !== 'NOT_AVAILABLE') {
                 matchedClient = clients.find(c => c.mac.toLowerCase() === clientMac.toLowerCase());
             } else if (clientIp) {
-                // Auto-detect sa pamamagitan ng IP kung walang MAC sa URL
                 matchedClient = clients.find(c => c.ip === clientIp || clientIp.includes(c.ip));
             }
 
@@ -74,6 +76,11 @@ app.get('/api/check-time', async (req, res) => {
         console.error('Error fetching Omada data:', err.message);
         res.status(500).json({ success: false, error: 'Server communication error with Omada' });
     }
+});
+
+// Optional: Direktang i-serve ang status.html kapag binuksan ang root URL
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'status.html'));
 });
 
 app.listen(3000, () => {
