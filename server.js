@@ -53,6 +53,9 @@ app.get('/api/check-time', async (req, res) => {
         if (response.data && response.data.errorCode === 0) {
             const clients = response.data.result.data || [];
             
+            // --- DIAGNOSTIC LOG PARA SA LAHAT NG ACTIVE CLIENTS ---
+            console.log("LAHAT NG ACTIVE CLIENTS SA OMADA:", JSON.stringify(clients, null, 2));
+
             let matchedClient = null;
 
             // 1. Hanapin muna gamit ang Voucher Code / Username / AuthName sa active clients
