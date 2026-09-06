@@ -28,10 +28,10 @@ async function loginOmada() {
 
         if (response.data && response.data.errorCode === 0) {
             omadaToken = response.data.result.token;
-            console.log('Connected successfully to Omada Controller API');
+            console.log('Connected successfully to Omada Controller API');[cite: 3]
         }
     } catch (err) {
-        console.error('Omada Login Failed:', err.message);
+        console.error('Omada Login Failed:', err.message);[cite: 3]
     }
 }
 
@@ -50,7 +50,7 @@ app.get('/api/check-time', async (req, res) => {
         });
 
         if (response.data && response.data.errorCode === 0) {
-            const clients = response.data.result.data || [];
+            const clients = response.data.result.data || [];[cite: 3]
             
             let matchedClient = null;
             if (clientMac && clientMac !== 'NOT_AVAILABLE') {
@@ -60,7 +60,10 @@ app.get('/api/check-time', async (req, res) => {
             }
 
             if (matchedClient) {
-                const remainingSeconds = matchedClient.remainingTime || matchedClient.duration || 0;
+                // I-print sa logs ang buong detalye ng kliyente para makita ang tamang key ng oras
+                console.log("MATCHED CLIENT DATA:", JSON.stringify(matchedClient, null, 2));
+
+                const remainingSeconds = matchedClient.remainingTime || matchedClient.duration || matchedClient.leftTime || matchedClient.time || 0;
                 return res.json({
                     success: true,
                     mac: matchedClient.mac,
@@ -70,20 +73,20 @@ app.get('/api/check-time', async (req, res) => {
             }
         }
 
-        res.json({ success: false, message: 'Client not found in active session' });
+        res.json({ success: false, message: 'Client not found in active session' });[cite: 3]
 
     } catch (err) {
-        console.error('Error fetching Omada data:', err.message);
-        res.status(500).json({ success: false, error: 'Server communication error with Omada' });
+        console.error('Error fetching Omada data:', err.message);[cite: 3]
+        res.status(500).json({ success: false, error: 'Server communication error with Omada' });[cite: 3]
     }
 });
 
-// Optional: Direktang i-serve ang status.html kapag binuksan ang root URL
+// Optional: Direktang i-serve ang status.html kapag binuksan ang root URL[cite: 3]
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'status.html'));
+    res.sendFile(path.join(__dirname, 'public', 'status.html'));[cite: 3]
 });
 
 app.listen(3000, () => {
-    console.log('ART WIFI Omada Bridge API running on port 3000');
-    loginOmada();
+    console.log('ART WIFI Omada Bridge API running on port 3000');[cite: 3]
+    loginOmada();[cite: 3]
 });
