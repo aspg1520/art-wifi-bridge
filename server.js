@@ -45,42 +45,50 @@ app.get('/api/check-time', async (req, res) => {
             await loginOmada();
         }
 
-        // Kunin ang listahan ng mga vouchers mula sa Omada
-        const voucherRes = await axios.get(`${OMADA_CONFIG.baseUrl}/api/v2/sites/${OMADA_CONFIG.siteId}/vouchers`, {
+        // Kunin ang listahan ng active clients kung saan nakalagay ang authName tulad ng "Voucher - 934126"
+        const response = await axios.get(`${OMADA_CONFIG.baseUrl}/api/v2/sites/${OMADA_CONFIG.siteId}/clients`, {
             headers: { 'Csrf-Token': omadaToken },
             httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false })
         });
 
-        if (voucherRes.data && voucherRes.data.errorCode === 0) {
-            const vouchers = voucherRes.data.result.data || [];
+        if (response.data && response.data.errorCode === 0) {
+            const clients = response.data.result.data || [];
             
-            let matchedVoucher = null;
+            let matchedClient = null;
+
             if (voucherCode && voucherCode !== 'ACTIVE' && voucherCode !== 'INPUT CODE BELOW') {
-                matchedVoucher = vouchers.find(v => v.code && v.code.toLowerCase() === voucherCode.toLowerCase());
+                const cleanCode = voucherCode.trim().toLowerCase();
+                matchedClient = clients.find(c => {
+                    const authName = (c.authName || '').toLowerCase();
+                    const name = (c.name || '').toLowerCase();
+                    const username = (c.username || '').toLowerCase();
+                    
+                    return authName.includes(cleanCode) || name.includes(cleanCode) || username.includes(cleanCode);
+                });
             }
 
-            if (matchedVoucher) {
-                console.log("MATCHED VOUCHER FOUND:", JSON.stringify(matchedVoucher, null, 2));
+            if (!matchedClient && clientMac && clientMac !== 'NOT_AVAILABLE') {
+                matchedClient = clients.find(c => c.mac && c.mac.toLowerCase() === clientMac.toLowerCase());
+            }
 
-                // Kunin ang duration o remaining time mula sa voucher object ng Omada
-                // Kadalasan ang duration ay nasa minutes o seconds, pwedeng i-convert sa seconds
-                const durationMinutes = matchedVoucher.duration || 60; // Default 60 mins kung sakaling walang value
-                const remainingSeconds = matchedVoucher.remainingTime || (durationMinutes * 60);
+            if (matchedClient) {
+                console.log("MATCHED CLIENT FOUND:", JSON.stringify(matchedClient, null, 2));
 
+                const remainingSeconds = matchedClient.remainingTime || matchedClient.duration || matchedClient.leftTime || 3600;
                 return res.json({
                     success: true,
-                    mac: clientMac && clientMac !== 'NOT_AVAILABLE' ? clientMac : (matchedVoucher.mac || "VOUCHER-USER"),
-                    ip: clientIp,
+                    mac: matchedClient.mac || clientMac || "NOT_AVAILABLE",
+                    ip: matchedClient.ip || clientIp,
                     remainingSeconds: remainingSeconds,
-                    voucherCode: matchedVoucher.code
+                    voucherCode: voucherCode
                 });
             }
         }
 
-        res.json({ success: false, message: 'Voucher code not found in Omada system.' });
+        res.json({ success: false, message: 'Hindi mahanap ang active session o invalid ang voucher code.' });
 
     } catch (err) {
-        console.error('Error fetching Omada voucher data:', err.message);
+        console.error('Error fetching Omada data:', err.message);
         res.status(500).json({ success: false, error: 'Server communication error with Omada' });
     }
 });
