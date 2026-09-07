@@ -16,7 +16,7 @@ const OMADA_CONFIG = {
     baseUrl: 'https://62.72.47.203:8043',
     username: 'aspg1520@gmail.com',
     password: 'Lja231827@@',
-    siteId: 'c079d99361c04d149718906a869580ec'
+    siteId: '6a615c90e78f4e28047ab010'
 };
 
 let omadaToken = null;
@@ -87,28 +87,30 @@ app.get('/api/check-time', async (req, res) => {
             httpsAgent: agent
         });
 
+        console.log("Omada Clients API Response Status:", response.data.errorCode);
+
         if (response.data && response.data.errorCode === 0) {
             const clients = response.data.result.data || [];
-            console.log(`Kabuuang active clients sa Omada: ${clients.length}`);
+            console.log(`Kabuuang active clients na nakuha kay Omada: ${clients.length}`);
             
+            if (clients.length > 0) {
+                console.log("Sample client data structure:", JSON.stringify(clients[0], null, 2));
+            }
+
             let matchedClient = null;
 
-            // Kung may kasamang voucher code, subukang hanapin sa lahat ng properties ng client
             if (voucherCode && voucherCode !== 'ACTIVE' && voucherCode !== 'INPUT CODE BELOW') {
                 const cleanCode = voucherCode.trim().toLowerCase();
                 matchedClient = clients.find(c => {
-                    // I-check ang lahat ng posibleng naglalaman ng voucher/username info
                     const textBlob = JSON.stringify(c).toLowerCase();
                     return textBlob.includes(cleanCode);
                 });
             }
 
-            // Kung wala o hindi nahanap sa voucher, hanapin sa MAC address
             if (!matchedClient && clientMac && clientMac !== 'NOT_AVAILABLE') {
                 matchedClient = clients.find(c => c.mac && c.mac.toLowerCase() === clientMac.toLowerCase());
             }
 
-            // Fallback: Kung iisa lang ang client na naka-connect at nag-request siya, pwede nating i-default muna para makita kung gumagana ang timer
             if (!matchedClient && clients.length === 1) {
                 matchedClient = clients[0];
             }
@@ -116,7 +118,6 @@ app.get('/api/check-time', async (req, res) => {
             if (matchedClient) {
                 console.log("MATCHED CLIENT FOUND:", JSON.stringify(matchedClient, null, 2));
 
-                // Hanapin ang pinakaangkop na property para sa natitirang oras
                 const remainingSeconds = matchedClient.remainingTime || matchedClient.duration || matchedClient.leftTime || matchedClient.validTime || 3600;
                 
                 return res.json({
@@ -126,6 +127,8 @@ app.get('/api/check-time', async (req, res) => {
                     remainingSeconds: remainingSeconds,
                     voucherCode: voucherCode || matchedClient.authName || matchedClient.name || "ACTIVE"
                 });
+            } else {
+                console.log("Walang nag-match na client para sa voucher/mac na ito.");
             }
         } else if (response.data && response.data.errorCode === -1) {
             omadaToken = null;
