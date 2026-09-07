@@ -8,26 +8,44 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// I-serve ang mga static files mula sa 'public' folder
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Omada Controller Credentials & Configuration
 const OMADA_CONFIG = {
     baseUrl: 'https://62.72.47.203:8043',
     username: 'aspg1520@gmail.com',
     password: 'Lja231827@@',
-    siteId: '6a615c90e78f4e28047ab010'
+    // Kung hindi makuha, hahanapin ito ng automatic sa ibaba
+    siteId: '6a615c90e78f4e28047ab010' 
 };
 
 let omadaToken = null;
 let omadaCookies = null;
 
-// Bypass SSL self-signed certificate error
 const agent = new https.Agent({  
     rejectUnauthorized: false
 });
 
-// 1. Matibay na Function para sa pagkuha ng Token kay Omada
+// Awtomatikong hahanapin ang tamang site ID para maiwasan ang error -1600
+async function getValidSiteId(headers) {
+    try {
+        const response = await axios.get(`${OMADA_CONFIG.baseUrl}/api/v2/sites`, {
+            headers: headers,
+            httpsAgent: agent
+        });
+        if (response.data && response.data.errorCode === 0) {
+            const sites = response.data.result.data || response.data.result || [];
+            console.log("Mga nahanap na Sites sa Omada Controller:", JSON.stringify(sites, null, 2));
+            if (sites.length > 0) {
+                // Gamitin ang unang site o hanapin kung alin ang may tamang pangalan
+                return sites[0].id || sites[0].siteId;
+            }
+        }
+    } catch (err) {
+        console.error("Error sa pagkuha ng sites:", err.message);
+    }
+    return OMADA_CONFIG.siteId;
+}
+
 async function loginOmada() {
     try {
         console.log('Sinusubukang kumonekta at kumuha ng token kay Omada Controller...');
@@ -46,6 +64,19 @@ async function loginOmada() {
                 omadaCookies = setCookie.join('; ');
             }
             console.log('SUCCESS: Matagumpay na nakakuha ng Omada Token!');
+
+            // Kunin ang tamang site ID habang naka-login
+            const headers = {
+                'Csrf-Token': omadaToken,
+                'Content-Type': 'application/json',
+                'Cookie': omadaCookies || ''
+            };
+            const validSite = await getValidSiteId(headers);
+            if (validSite) {
+                OMADA_CONFIG.siteId = validSite;
+                console.log('Ginagamit na Omada Site ID:', OMADA_CONFIG.siteId);
+            }
+
             return true;
         } else {
             console.error('Omada Login Error Response:', response.data);
@@ -57,7 +88,6 @@ async function loginOmada() {
     }
 }
 
-// 2. API Endpoint para i-check ang status at oras ng client/voucher
 app.get('/api/check-time', async (req, res) => {
     console.log("May pumasok na request sa /api/check-time! Query params:", req.query);
 
@@ -81,7 +111,6 @@ app.get('/api/check-time', async (req, res) => {
             headers['Cookie'] = omadaCookies;
         }
 
-        // Kunin ang active clients list mula sa tamang Omada Site ID
         const response = await axios.get(`${OMADA_CONFIG.baseUrl}/api/v2/sites/${OMADA_CONFIG.siteId}/clients`, {
             headers: headers,
             httpsAgent: agent
@@ -130,7 +159,7 @@ app.get('/api/check-time', async (req, res) => {
             } else {
                 console.log("Walang nag-match na client para sa voucher/mac na ito.");
             }
-        } else if (response.data && response.data.errorCode === -1) {
+        } else if (response.data && response.data.errorCode === -1 || response.data.errorCode === -1600) {
             omadaToken = null;
         }
 
