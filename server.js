@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const https = require('https');
 const path = require('path');
 const app = express();
 
@@ -10,6 +11,7 @@ app.use(express.json());
 // I-serve ang mga static files mula sa 'public' folder
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Omada Controller Credentials & Configuration
 const OMADA_CONFIG = {
     baseUrl: 'https://62.72.47.203:8043',
     username: 'aspg1520@gmail.com',
@@ -18,44 +20,82 @@ const OMADA_CONFIG = {
 };
 
 let omadaToken = null;
+let omadaCookies = null;
 
+// Bypass SSL self-signed certificate error
+const agent = new https.Agent({  
+    rejectUnauthorized: false
+});
+
+// 1. Matibay na Function para sa pagkuha ng Token kay Omada
 async function loginOmada() {
     try {
+        console.log('Sinusubukang kumonekta at kumuha ng token kay Omada Controller...');
         const response = await axios.post(`${OMADA_CONFIG.baseUrl}/api/v2/login`, {
             username: OMADA_CONFIG.username,
             password: OMADA_CONFIG.password
-        }, { httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false }) });
+        }, { 
+            httpsAgent: agent,
+            headers: { 'Content-Type': 'application/json' }
+        });
 
+        // Suriin kung nakuha ang tamang response code
         if (response.data && response.data.errorCode === 0) {
             omadaToken = response.data.result.token;
-            console.log('Connected successfully to Omada Controller API');
+            
+            // Kunin ang Set-Cookie headers kung mayroon man para sa session persistence
+            const setCookie = response.headers['set-cookie'];
+            if (setCookie) {
+                omadaCookies = setCookie.join('; ');
+            }
+            
+            console.log('SUCCESS: Matagumpay na nakakuha ng Omada Token!');
+            return true;
+        } else {
+            console.error('Omada Login Error Response:', response.data);
+            return false;
         }
     } catch (err) {
-        console.error('Omada Login Failed:', err.message);
+        console.error('Omada Login Failed Connection Error:', err.message);
+        return false;
     }
 }
 
+// 2. API Endpoint para i-check ang status at oras ng client/voucher
 app.get('/api/check-time', async (req, res) => {
     let clientMac = req.query.mac;
     let voucherCode = req.query.voucher || req.query.username;
     let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
     try {
+        // Kung walang token o na-expire, mag-login muli
         if (!omadaToken) {
-            await loginOmada();
+            let loggedIn = await loginOmada();
+            if (!loggedIn) {
+                return res.status(500).json({ success: false, error: 'Hindi makakonekta sa Omada Controller.' });
+            }
         }
 
-        // Kunin ang listahan ng active clients kung saan nakalagay ang authName tulad ng "Voucher - 934126"
+        // I-setup ang headers kasama ang Token at Cookies para hindi i-reject ng Omada
+        const headers = {
+            'Csrf-Token': omadaToken,
+            'Content-Type': 'application/json'
+        };
+        if (omadaCookies) {
+            headers['Cookie'] = omadaCookies;
+        }
+
+        // Kunin ang active clients list mula sa tamang Omada Site ID
         const response = await axios.get(`${OMADA_CONFIG.baseUrl}/api/v2/sites/${OMADA_CONFIG.siteId}/clients`, {
-            headers: { 'Csrf-Token': omadaToken },
-            httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false })
+            headers: headers,
+            httpsAgent: agent
         });
 
         if (response.data && response.data.errorCode === 0) {
             const clients = response.data.result.data || [];
-            
             let matchedClient = null;
 
+            // Hanapin base sa Voucher Code (authName / name / username)
             if (voucherCode && voucherCode !== 'ACTIVE' && voucherCode !== 'INPUT CODE BELOW') {
                 const cleanCode = voucherCode.trim().toLowerCase();
                 matchedClient = clients.find(c => {
@@ -67,6 +107,7 @@ app.get('/api/check-time', async (req, res) => {
                 });
             }
 
+            // Kung walang nahanap sa voucher, hanapin sa MAC address
             if (!matchedClient && clientMac && clientMac !== 'NOT_AVAILABLE') {
                 matchedClient = clients.find(c => c.mac && c.mac.toLowerCase() === clientMac.toLowerCase());
             }
@@ -83,12 +124,19 @@ app.get('/api/check-time', async (req, res) => {
                     voucherCode: voucherCode
                 });
             }
+        } else if (response.data && response.data.errorCode === -1) {
+            // Posibleng nag-expire ang token, i-reset natin para mag-login ulit sa susunod
+            omadaToken = null;
         }
 
         res.json({ success: false, message: 'Hindi mahanap ang active session o invalid ang voucher code.' });
 
     } catch (err) {
         console.error('Error fetching Omada data:', err.message);
+        // I-reset ang token kapag nag-error (Unauthorized/Forbidden)
+        if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+            omadaToken = null;
+        }
         res.status(500).json({ success: false, error: 'Server communication error with Omada' });
     }
 });
