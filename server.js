@@ -28,7 +28,7 @@ const agent = new https.Agent({
 // Awtomatikong hahanapin ang tamang site ID para maiwasan ang error -1600
 async function getValidSiteId(headers) {
     try {
-        const response = await axios.get(`${OMADA_CONFIG.baseUrl}/api/v2/sites`, {
+        const response = await axios.get(`${OMADA_CONFIG.baseUrl}/api/v2/sites/${OMADA_CONFIG.siteId}/clients?currentPage=1&pageSize=100`, {
             headers: headers,
             httpsAgent: agent
         });
