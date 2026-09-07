@@ -272,7 +272,7 @@
             <button id="check-btn" class="check-btn">CHECK REMAINING TIME</button>
         </div>
 
-        <span id="oper-hint">💡 Ilagay ang voucher code kung hindi nag-auto-load ang timer. Huwag i-close ang tab.</span>
+        <span id="oper-hint">💡 Huwag i-close ang tab na ito para tuloy-tuloy ang iyong koneksyon.</span>
     </div>
 </div>
 
@@ -282,8 +282,9 @@
     var clientMac = "NOT_AVAILABLE";
     var remainingSeconds = 0;
     var timerInterval = null;
+    var syncInterval = null;
 
-    // Kunin ang query parameters galing sa Omada URL redirect
+    // Kunin ang query parameters o localStorage
     function parseURLParams() {
         var params = new URLSearchParams(window.location.search);
         clientMac = params.get('clientMac') || params.get('mac') || params.get('id') || 'NOT_AVAILABLE';
@@ -291,13 +292,22 @@
 
         if (clientMac !== 'NOT_AVAILABLE') {
             document.getElementById('client-mac').innerText = clientMac;
+            localStorage.setItem('art_wifi_mac', clientMac);
+        } else {
+            let savedMac = localStorage.getItem('art_wifi_mac');
+            if (savedMac) clientMac = savedMac;
         }
         
         if (voucherParam) {
             document.getElementById('voucher-display').innerText = voucherParam;
             document.getElementById('voucher-input').value = voucherParam;
-            // Kung may kasama nang voucher sa URL, auto-check na agad
-            checkVoucherOnServer(voucherParam);
+            localStorage.setItem('art_wifi_voucher', voucherParam);
+        } else {
+            let savedVoucher = localStorage.getItem('art_wifi_voucher');
+            if (savedVoucher) {
+                document.getElementById('voucher-display').innerText = savedVoucher;
+                document.getElementById('voucher-input').value = savedVoucher;
+            }
         }
     }
 
@@ -331,7 +341,7 @@
     }
 
     // Function para i-check ang time gamit ang MAC o Voucher Code
-    async function checkVoucherOnServer(code = "") {
+    async function checkVoucherOnServer(code = "", showAlert = false) {
         try {
             let requestUrl = `${API_URL}/api/check-time?`;
             let params = [];
@@ -351,20 +361,26 @@
 
             if (data.success) {
                 remainingSeconds = data.remainingSeconds;
-                if (data.mac) {
+                if (data.mac && data.mac !== 'NOT_AVAILABLE') {
                     clientMac = data.mac;
                     document.getElementById('client-mac').innerText = clientMac;
+                    localStorage.setItem('art_wifi_mac', clientMac);
                 }
                 if (code) {
                     document.getElementById('voucher-display').innerText = code;
+                    localStorage.setItem('art_wifi_voucher', code);
                 }
                 startLocalCountdown();
+                if (showAlert) alert("Tagumpay! Na-sync ang session time.");
+                return true;
             } else {
-                alert("Hindi mahanap ang active session o invalid ang voucher code.");
+                if (showAlert) alert("Hindi mahanap ang active session o invalid ang voucher code.");
+                return false;
             }
         } catch (err) {
             console.log("Server sync failed:", err);
-            alert("Nagkaproblema sa pagkonekta sa server.");
+            if (showAlert) alert("Nagkaproblema sa pagkonekta sa server.");
+            return false;
         }
     }
 
@@ -375,7 +391,7 @@
             alert("Mangyaring maglagay muna ng voucher code.");
             return;
         }
-        checkVoucherOnServer(code);
+        checkVoucherOnServer(code, true);
     });
 
     // Enter key support sa input box
@@ -392,12 +408,19 @@
         if(pingEl) pingEl.innerText = randomPing;
     }, 4000);
 
-    window.addEventListener("DOMContentLoaded", function() {
+    window.addEventListener("DOMContentLoaded", async function() {
         parseURLParams();
-        // Kung sakaling walang parameter sa URL pero merong MAC sa cache o gusto mo itry muna auto-sync
-        if (clientMac === 'NOT_AVAILABLE') {
-            checkVoucherOnServer();
-        }
+        
+        let currentVoucher = document.getElementById('voucher-input').value.trim();
+        // Subukang mag-sync agad pagka-buklod ng page
+        await checkVoucherOnServer(currentVoucher, false);
+
+        // Background auto-sync tuwing 10 segundo para laging updated ang oras mula sa Omada
+        if (syncInterval) clearInterval(syncInterval);
+        syncInterval = setInterval(function() {
+            let activeVoucher = document.getElementById('voucher-input').value.trim();
+            checkVoucherOnServer(activeVoucher, false);
+        }, 10000);
     });
 </script>
 </body>
