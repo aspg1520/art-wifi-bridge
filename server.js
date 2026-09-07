@@ -39,16 +39,12 @@ async function loginOmada() {
             headers: { 'Content-Type': 'application/json' }
         });
 
-        // Suriin kung nakuha ang tamang response code
         if (response.data && response.data.errorCode === 0) {
             omadaToken = response.data.result.token;
-            
-            // Kunin ang Set-Cookie headers kung mayroon man para sa session persistence
             const setCookie = response.headers['set-cookie'];
             if (setCookie) {
                 omadaCookies = setCookie.join('; ');
             }
-            
             console.log('SUCCESS: Matagumpay na nakakuha ng Omada Token!');
             return true;
         } else {
@@ -63,7 +59,6 @@ async function loginOmada() {
 
 // 2. API Endpoint para i-check ang status at oras ng client/voucher
 app.get('/api/check-time', async (req, res) => {
-    // Idinagdag ang log na ito upang makita sa Render logs kung pumapasok ang request at ano ang mga query parameters
     console.log("May pumasok na request sa /api/check-time! Query params:", req.query);
 
     let clientMac = req.query.mac;
@@ -71,7 +66,6 @@ app.get('/api/check-time', async (req, res) => {
     let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
     try {
-        // Kung walang token o na-expire, mag-login muli
         if (!omadaToken) {
             let loggedIn = await loginOmada();
             if (!loggedIn) {
@@ -79,7 +73,6 @@ app.get('/api/check-time', async (req, res) => {
             }
         }
 
-        // I-setup ang headers kasama ang Token at Cookies para hindi i-reject ng Omada
         const headers = {
             'Csrf-Token': omadaToken,
             'Content-Type': 'application/json'
@@ -96,39 +89,45 @@ app.get('/api/check-time', async (req, res) => {
 
         if (response.data && response.data.errorCode === 0) {
             const clients = response.data.result.data || [];
+            console.log(`Kabuuang active clients sa Omada: ${clients.length}`);
+            
             let matchedClient = null;
 
-            // Hanapin base sa Voucher Code (authName / name / username)
+            // Kung may kasamang voucher code, subukang hanapin sa lahat ng properties ng client
             if (voucherCode && voucherCode !== 'ACTIVE' && voucherCode !== 'INPUT CODE BELOW') {
                 const cleanCode = voucherCode.trim().toLowerCase();
                 matchedClient = clients.find(c => {
-                    const authName = (c.authName || '').toLowerCase();
-                    const name = (c.name || '').toLowerCase();
-                    const username = (c.username || '').toLowerCase();
-                    
-                    return authName.includes(cleanCode) || name.includes(cleanCode) || username.includes(cleanCode);
+                    // I-check ang lahat ng posibleng naglalaman ng voucher/username info
+                    const textBlob = JSON.stringify(c).toLowerCase();
+                    return textBlob.includes(cleanCode);
                 });
             }
 
-            // Kung walang nahanap sa voucher, hanapin sa MAC address
+            // Kung wala o hindi nahanap sa voucher, hanapin sa MAC address
             if (!matchedClient && clientMac && clientMac !== 'NOT_AVAILABLE') {
                 matchedClient = clients.find(c => c.mac && c.mac.toLowerCase() === clientMac.toLowerCase());
+            }
+
+            // Fallback: Kung iisa lang ang client na naka-connect at nag-request siya, pwede nating i-default muna para makita kung gumagana ang timer
+            if (!matchedClient && clients.length === 1) {
+                matchedClient = clients[0];
             }
 
             if (matchedClient) {
                 console.log("MATCHED CLIENT FOUND:", JSON.stringify(matchedClient, null, 2));
 
-                const remainingSeconds = matchedClient.remainingTime || matchedClient.duration || matchedClient.leftTime || 3600;
+                // Hanapin ang pinakaangkop na property para sa natitirang oras
+                const remainingSeconds = matchedClient.remainingTime || matchedClient.duration || matchedClient.leftTime || matchedClient.validTime || 3600;
+                
                 return res.json({
                     success: true,
                     mac: matchedClient.mac || clientMac || "NOT_AVAILABLE",
                     ip: matchedClient.ip || clientIp,
                     remainingSeconds: remainingSeconds,
-                    voucherCode: voucherCode
+                    voucherCode: voucherCode || matchedClient.authName || matchedClient.name || "ACTIVE"
                 });
             }
         } else if (response.data && response.data.errorCode === -1) {
-            // Posibleng nag-expire ang token, i-reset natin para mag-login ulit sa susunod
             omadaToken = null;
         }
 
@@ -136,7 +135,6 @@ app.get('/api/check-time', async (req, res) => {
 
     } catch (err) {
         console.error('Error fetching Omada data:', err.message);
-        // I-reset ang token kapag nag-error (Unauthorized/Forbidden)
         if (err.response && (err.response.status === 401 || err.response.status === 403)) {
             omadaToken = null;
         }
