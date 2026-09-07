@@ -74,7 +74,7 @@ app.get('/api/check-time', async (req, res) => {
             headers['Cookie'] = omadaCookies;
         }
 
-        // Hakbang 1: Kunin ang listahan ng sites para makuha ang tamang site ID ng account na ito
+        // Hakbang 1: Kunin ang listahan ng sites at i-log ang buong response para ma-inspeksyon
         const sitesUrl = `${OMADA_CONFIG.baseUrl}/api/v2/sites`;
         const sitesRes = await axios.get(sitesUrl, { headers: headers, httpsAgent: agent });
 
@@ -82,7 +82,7 @@ app.get('/api/check-time', async (req, res) => {
 
         if (sitesRes.data && sitesRes.data.errorCode === 0) {
             const sitesList = sitesRes.data.result.data || sitesRes.data.result || [];
-            console.log(`Kabuuang sites na nahanap: ${sitesList.length}`);
+            console.log(`DEBUG SITES RESPONSE:`, JSON.stringify(sitesList));
             
             const matchedSite = sitesList.find(s => (s.id === OMADA_CONFIG.siteId || s.siteId === OMADA_CONFIG.siteId || s.name));
             if (matchedSite) {
@@ -92,10 +92,10 @@ app.get('/api/check-time', async (req, res) => {
                 console.log(`Gamit ang unang available site ID mula sa controller: ${targetSiteId}`);
             }
         } else {
-            console.log("Hindi nakuha ang sites list, gamit ang default siteId:", targetSiteId);
+            console.log("Sites API Error:", sitesRes.data);
         }
 
-        // Hakbang 2: Gamitin ang nakuha o na-validate na targetSiteId sa pagkuha ng clients
+        // Hakbang 2: Gamitin ang na-validate na targetSiteId sa pagkuha ng clients
         const clientApiUrl = `${OMADA_CONFIG.baseUrl}/api/v2/sites/${targetSiteId}/clients?currentPage=1&pageSize=500`;
         console.log(`Tinatarget ang Clients API URL: ${clientApiUrl}`);
 
