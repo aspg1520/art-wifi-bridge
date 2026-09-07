@@ -19,7 +19,7 @@ const OMADA_CONFIG = {
 
 let omadaToken = null;
 let omadaCookies = null;
-let omadaId = null;
+let omadaOmadaId = null;
 
 const agent = new https.Agent({  
     rejectUnauthorized: false
@@ -28,8 +28,6 @@ const agent = new https.Agent({
 async function loginOmada() {
     try {
         console.log('Nag-uusap sa Omada Controller login...');
-        
-        // Step 1: Login request
         const response = await axios.post(`${OMADA_CONFIG.baseUrl}/api/v2/login`, {
             username: OMADA_CONFIG.username,
             password: OMADA_CONFIG.password
@@ -40,13 +38,13 @@ async function loginOmada() {
 
         if (response.data && response.data.errorCode === 0) {
             omadaToken = response.data.result.token;
-            omadaId = response.data.result.omadaId || null;
+            omadaOmadaId = response.data.result.omadaId || null;
             
             const setCookie = response.headers['set-cookie'];
             if (setCookie) {
                 omadaCookies = setCookie.join('; ');
             }
-            console.log('SUCCESS: Nakakuha ng Omada Token!');
+            console.log('SUCCESS: Nakakuha ng Omada Token!', omadaOmadaId ? `OmadaID: ${omadaOmadaId}` : '');
             return true;
         } else {
             console.error('Omada Login Error:', response.data);
@@ -79,18 +77,34 @@ app.get('/api/check-time', async (req, res) => {
             headers['Cookie'] = omadaCookies;
         }
 
-        // Subukan ang Omada Controller path na may omadaId kung meron, o standard site path
-        const clientApiUrl = omadaId 
-            ? `${OMADA_CONFIG.baseUrl}/${omadaId}/api/v2/sites/${OMADA_CONFIG.siteId}/clients?currentPage=1&pageSize=500`
-            : `${OMADA_CONFIG.baseUrl}/api/v2/sites/${OMADA_CONFIG.siteId}/clients?currentPage=1&pageSize=500`;
+        // Subukan ang dalawang posibleng endpoint formats para sa Omada v2 clients
+        let endpointsToTry = [];
+        if (omadaOmadaId) {
+            endpointsToTry.push(`${OMADA_CONFIG.baseUrl}/${omadaOmadaId}/api/v2/sites/${OMADA_CONFIG.siteId}/clients?currentPage=1&pageSize=500`);
+        }
+        endpointsToTry.push(`${OMADA_CONFIG.baseUrl}/api/v2/sites/${OMADA_CONFIG.siteId}/clients?currentPage=1&pageSize=500`);
+        endpointsToTry.push(`${OMADA_CONFIG.baseUrl}/api/v2/controller/sites/${OMADA_CONFIG.siteId}/clients?currentPage=1&pageSize=500`);
 
-        const response = await axios.get(clientApiUrl, {
-            headers: headers,
-            httpsAgent: agent
-        });
+        let response = null;
+        let successData = null;
 
-        if (response.data && response.data.errorCode === 0) {
-            const clients = response.data.result.data || response.data.result || [];
+        for (let url of endpointsToTry) {
+            try {
+                console.log(`Sinusubukang tawagin ang endpoint: ${url}`);
+                const resApi = await axios.get(url, { headers: headers, httpsAgent: agent });
+                if (resApi.data && resApi.data.errorCode === 0) {
+                    successData = resApi.data;
+                    break;
+                } else {
+                    console.log(`Endpoint nag-return ng errorCode: ${resApi.data?.errorCode} para sa URL: ${url}`);
+                }
+            } catch (e) {
+                // Subukan ang susunod
+            }
+        }
+
+        if (successData) {
+            const clients = successData.result.data || successData.result || [];
             console.log(`Active clients nakuha: ${clients.length}`);
 
             let matchedClient = null;
@@ -122,11 +136,8 @@ app.get('/api/check-time', async (req, res) => {
                     voucherCode: voucherCode || matchedClient.authName || matchedClient.name || "ACTIVE"
                 });
             }
-        } else if (response.data && response.data.errorCode !== 0) {
-            console.log("Client API Error Code:", response.data.errorCode);
-            if (response.data.errorCode === -1 || response.data.errorCode === -1600) {
-                omadaToken = null; // i-reset para mag-relogin sa susunod
-            }
+        } else {
+            omadaToken = null; // I-reset para mag-login uli sakaling nag-expire
         }
 
         res.json({ success: false, message: 'Hindi mahanap ang active session.' });
