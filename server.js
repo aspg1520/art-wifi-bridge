@@ -63,6 +63,9 @@ async function loginOmada() {
 
 // 2. API Endpoint para i-check ang status at oras ng client/voucher
 app.get('/api/check-time', async (req, res) => {
+    // Idinagdag ang log na ito upang makita sa Render logs kung pumapasok ang request at ano ang mga query parameters
+    console.log("May pumasok na request sa /api/check-time! Query params:", req.query);
+
     let clientMac = req.query.mac;
     let voucherCode = req.query.voucher || req.query.username;
     let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
