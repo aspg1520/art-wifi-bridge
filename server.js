@@ -45,7 +45,7 @@ app.get('/api/check-time', async (req, res) => {
             await loginOmada();
         }
 
-        // Direktang tawagin ang Omada Voucher API para makuha ang status at oras ng code
+        // Kunin ang listahan ng mga vouchers mula sa Omada
         const voucherRes = await axios.get(`${OMADA_CONFIG.baseUrl}/api/v2/sites/${OMADA_CONFIG.siteId}/vouchers`, {
             headers: { 'Csrf-Token': omadaToken },
             httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false })
@@ -54,24 +54,25 @@ app.get('/api/check-time', async (req, res) => {
         if (voucherRes.data && voucherRes.data.errorCode === 0) {
             const vouchers = voucherRes.data.result.data || [];
             
-            // --- DIAGNOSTIC LOG PARA SA VOUCHERS ---
-            console.log("LAHAT NG VOUCHERS SA OMADA:", JSON.stringify(vouchers, null, 2));
-
             let matchedVoucher = null;
             if (voucherCode && voucherCode !== 'ACTIVE' && voucherCode !== 'INPUT CODE BELOW') {
                 matchedVoucher = vouchers.find(v => v.code && v.code.toLowerCase() === voucherCode.toLowerCase());
             }
 
             if (matchedVoucher) {
-                console.log("MATCHED VOUCHER DATA:", JSON.stringify(matchedVoucher, null, 2));
+                console.log("MATCHED VOUCHER FOUND:", JSON.stringify(matchedVoucher, null, 2));
 
-                const remainingSeconds = matchedVoucher.remainingTime || matchedVoucher.duration || 3600;
-                
+                // Kunin ang duration o remaining time mula sa voucher object ng Omada
+                // Kadalasan ang duration ay nasa minutes o seconds, pwedeng i-convert sa seconds
+                const durationMinutes = matchedVoucher.duration || 60; // Default 60 mins kung sakaling walang value
+                const remainingSeconds = matchedVoucher.remainingTime || (durationMinutes * 60);
+
                 return res.json({
                     success: true,
                     mac: clientMac && clientMac !== 'NOT_AVAILABLE' ? clientMac : (matchedVoucher.mac || "VOUCHER-USER"),
                     ip: clientIp,
-                    remainingSeconds: remainingSeconds
+                    remainingSeconds: remainingSeconds,
+                    voucherCode: matchedVoucher.code
                 });
             }
         }
