@@ -94,9 +94,9 @@ app.get('/api/check-time', async (req, res) => {
             }
         }
 
-        // Hakbang 2: Kunin ang clients gamit ang na-verify na site ID
-        const clientApiUrl = `${OMADA_CONFIG.baseUrl}/api/v2/sites/${targetSiteId}/clients?currentPage=1&pageSize=500`;
-        console.log(`Tinatarget ang Clients API URL: ${clientApiUrl}`);
+        // Hakbang 2: Gamitin ang Global Controller Sites Clients API para maiwasan ang site-level -1600 error
+        const clientApiUrl = `${OMADA_CONFIG.baseUrl}/api/v2/controller/sites/${targetSiteId}/clients?currentPage=1&pageSize=500`;
+        console.log(`Tinatarget ang Global Clients API URL: ${clientApiUrl}`);
 
         const response = await axios.get(clientApiUrl, {
             headers: headers,
