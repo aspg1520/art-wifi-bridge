@@ -74,38 +74,33 @@ app.get('/api/check-time', async (req, res) => {
             headers['Cookie'] = omadaCookies;
         }
 
-        // Hakbang 1: Kunin ang listahan ng sites at i-log ang buong response para ma-inspeksyon
-        const sitesUrl = `${OMADA_CONFIG.baseUrl}/api/v2/sites`;
-        const sitesRes = await axios.get(sitesUrl, { headers: headers, httpsAgent: agent });
+        // Subukan natin ang alternatibong clients endpoint na ginagamit ng Omada v2/v4/v5 controllers
+        const endpointsToTry = [
+            `${OMADA_CONFIG.baseUrl}/api/v2/sites/${OMADA_CONFIG.siteId}/clients?currentPage=1&pageSize=500`,
+            `${OMADA_CONFIG.baseUrl}/api/v2/controller/sites/${OMADA_CONFIG.siteId}/clients?currentPage=1&pageSize=500`,
+            `${OMADA_CONFIG.baseUrl}/api/v2/en/sites/${OMADA_CONFIG.siteId}/clients?currentPage=1&pageSize=500`
+        ];
 
-        let targetSiteId = OMADA_CONFIG.siteId;
+        let responseData = null;
 
-        if (sitesRes.data && sitesRes.data.errorCode === 0) {
-            const sitesList = sitesRes.data.result.data || sitesRes.data.result || [];
-            console.log(`DEBUG SITES RESPONSE:`, JSON.stringify(sitesList));
-            
-            const matchedSite = sitesList.find(s => (s.id === OMADA_CONFIG.siteId || s.siteId === OMADA_CONFIG.siteId || s.name));
-            if (matchedSite) {
-                targetSiteId = matchedSite.id || matchedSite.siteId;
-            } else if (sitesList.length > 0) {
-                targetSiteId = sitesList[0].id || sitesList[0].siteId;
-                console.log(`Gamit ang unang available site ID mula sa controller: ${targetSiteId}`);
+        for (let url of endpointsToTry) {
+            try {
+                console.log(`Sinusubukan ang endpoint: ${url}`);
+                const resp = await axios.get(url, { headers: headers, httpsAgent: agent });
+                if (resp.data && resp.data.errorCode === 0) {
+                    responseData = resp.data;
+                    console.log(`Tagumpay sa endpoint: ${url}`);
+                    break;
+                } else {
+                    console.log(`Nag-fail ang ${url} na may error code:`, resp.data?.errorCode);
+                }
+            } catch (e) {
+                // Ipagpatuloy sa susunod na endpoint sakaling mag-error
             }
-        } else {
-            console.log("Sites API Error:", sitesRes.data);
         }
 
-        // Hakbang 2: Gamitin ang na-validate na targetSiteId sa pagkuha ng clients
-        const clientApiUrl = `${OMADA_CONFIG.baseUrl}/api/v2/sites/${targetSiteId}/clients?currentPage=1&pageSize=500`;
-        console.log(`Tinatarget ang Clients API URL: ${clientApiUrl}`);
-
-        const response = await axios.get(clientApiUrl, {
-            headers: headers,
-            httpsAgent: agent
-        });
-
-        if (response.data && response.data.errorCode === 0) {
-            const clients = response.data.result.data || response.data.result || [];
+        if (responseData && responseData.errorCode === 0) {
+            const clients = responseData.result.data || responseData.result || [];
             console.log(`Active clients nakuha: ${clients.length}`);
 
             let matchedClient = null;
@@ -138,10 +133,7 @@ app.get('/api/check-time', async (req, res) => {
                 });
             }
         } else {
-            console.log("Client API Error Code:", response.data ? response.data.errorCode : 'Unknown');
-            if (response.data && (response.data.errorCode === -1 || response.data.errorCode === -1600)) {
-                omadaToken = null; 
-            }
+            omadaToken = null; // I-reset ang token para sa susunod na retry
         }
 
         res.json({ success: false, message: 'Hindi mahanap ang active session.' });
