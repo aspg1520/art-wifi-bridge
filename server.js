@@ -14,6 +14,7 @@ const OMADA_CONFIG = {
     baseUrl: 'https://62.72.47.203:8043',
     username: 'aspg1520@gmail.com',
     password: 'Lja231827@@',
+    omadaId: 'dd4b631441b02b1d9787466c7bf876f',
     siteId: '6a615c90e78f4e28047ab010'
 };
 
@@ -74,33 +75,17 @@ app.get('/api/check-time', async (req, res) => {
             headers['Cookie'] = omadaCookies;
         }
 
-        // Subukan natin ang alternatibong clients endpoint na ginagamit ng Omada v2/v4/v5 controllers
-        const endpointsToTry = [
-            `${OMADA_CONFIG.baseUrl}/api/v2/sites/${OMADA_CONFIG.siteId}/clients?currentPage=1&pageSize=500`,
-            `${OMADA_CONFIG.baseUrl}/api/v2/controller/sites/${OMADA_CONFIG.siteId}/clients?currentPage=1&pageSize=500`,
-            `${OMADA_CONFIG.baseUrl}/api/v2/en/sites/${OMADA_CONFIG.siteId}/clients?currentPage=1&pageSize=500`
-        ];
+        // Gamitin ang Open API structure kasama ang Omada ID at Site ID
+        const clientApiUrl = `${OMADA_CONFIG.baseUrl}/api/v2/${OMADA_CONFIG.omadaId}/sites/${OMADA_CONFIG.siteId}/clients?currentPage=1&pageSize=500`;
+        console.log(`Tinatarget ang Open API Clients URL: ${clientApiUrl}`);
 
-        let responseData = null;
+        const response = await axios.get(clientApiUrl, {
+            headers: headers,
+            httpsAgent: agent
+        });
 
-        for (let url of endpointsToTry) {
-            try {
-                console.log(`Sinusubukan ang endpoint: ${url}`);
-                const resp = await axios.get(url, { headers: headers, httpsAgent: agent });
-                if (resp.data && resp.data.errorCode === 0) {
-                    responseData = resp.data;
-                    console.log(`Tagumpay sa endpoint: ${url}`);
-                    break;
-                } else {
-                    console.log(`Nag-fail ang ${url} na may error code:`, resp.data?.errorCode);
-                }
-            } catch (e) {
-                // Ipagpatuloy sa susunod na endpoint sakaling mag-error
-            }
-        }
-
-        if (responseData && responseData.errorCode === 0) {
-            const clients = responseData.result.data || responseData.result || [];
+        if (response.data && response.data.errorCode === 0) {
+            const clients = response.data.result.data || response.data.result || [];
             console.log(`Active clients nakuha: ${clients.length}`);
 
             let matchedClient = null;
@@ -133,7 +118,10 @@ app.get('/api/check-time', async (req, res) => {
                 });
             }
         } else {
-            omadaToken = null; // I-reset ang token para sa susunod na retry
+            console.log("Open API Error Code:", response.data ? response.data.errorCode : 'Unknown');
+            if (response.data && (response.data.errorCode === -1 || response.data.errorCode === -1600)) {
+                omadaToken = null; 
+            }
         }
 
         res.json({ success: false, message: 'Hindi mahanap ang active session.' });
