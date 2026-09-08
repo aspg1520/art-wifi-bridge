@@ -210,6 +210,9 @@ app.get('/api/check-time', async (req, res) => {
         // ng device, tinutugma gamit ang 'authInfo' (naglalaman ng voucher code na ginamit nila).
         let realMac = null;
         let realIp = null;
+        let effectiveVoucherCode = (voucherCode && voucherCode !== 'ACTIVE' && voucherCode !== 'INPUT CODE BELOW')
+            ? voucherCode.trim()
+            : null;
 
         try {
             const clientApiUrl = `${OMADA_CONFIG.baseUrl}/openapi/v1/${OMADA_CONFIG.omadacId}/sites/${OMADA_CONFIG.siteId}/clients?page=1&pageSize=500`;
@@ -221,10 +224,9 @@ app.get('/api/check-time', async (req, res) => {
 
                 let matchedClient = null;
 
-                if (voucherCode && voucherCode !== 'ACTIVE' && voucherCode !== 'INPUT CODE BELOW') {
-                    const cleanCode = voucherCode.trim();
+                if (effectiveVoucherCode) {
                     matchedClient = clients.find(c =>
-                        (c.authInfo || []).some(a => (a.info || '').toString().trim() === cleanCode)
+                        (c.authInfo || []).some(a => (a.info || '').toString().trim() === effectiveVoucherCode)
                     );
                 }
 
@@ -236,6 +238,17 @@ app.get('/api/check-time', async (req, res) => {
                     console.log('MATCHED CLIENT (para sa MAC/IP) RAW DATA:', JSON.stringify(matchedClient));
                     realMac = matchedClient.mac || null;
                     realIp = matchedClient.ip || null;
+
+                    // Kung walang na-type na code (hal. una pa lang na-open ang page, MAC lang ang meron),
+                    // hanapin natin ang voucher code niya mismo gamit ang authInfo, para makakuha pa rin
+                    // ng TUNAY na remaining time sa halip na hardcoded default.
+                    if (!effectiveVoucherCode) {
+                        const voucherAuth = (matchedClient.authInfo || []).find(a => a.authType === 3);
+                        if (voucherAuth && voucherAuth.info) {
+                            effectiveVoucherCode = voucherAuth.info.toString().trim();
+                            console.log(`Nahanap ang voucher code base sa MAC: ${effectiveVoucherCode}`);
+                        }
+                    }
                 }
             } else {
                 console.log("Open API Error Code:", clientsRes.data ? clientsRes.data.errorCode : 'Unknown');
@@ -247,9 +260,8 @@ app.get('/api/check-time', async (req, res) => {
 
         // 2. Kunin ang TUNAY na remaining time mula sa LEGACY Vouchers list
         // — dito galing ang tunay na "Used Time" / "Left Time" na nakikita mo sa admin dashboard.
-        if (voucherCode && voucherCode !== 'ACTIVE' && voucherCode !== 'INPUT CODE BELOW') {
-            const cleanCode = voucherCode.trim();
-            const matchedVoucher = await fetchVoucherByCode(cleanCode);
+        if (effectiveVoucherCode) {
+            const matchedVoucher = await fetchVoucherByCode(effectiveVoucherCode);
 
             if (matchedVoucher) {
                 // KUMPIRMADO na ang tamang formula base sa aktwal na data:
@@ -272,7 +284,7 @@ app.get('/api/check-time', async (req, res) => {
                     mac: realMac || clientMac || "NOT_AVAILABLE",
                     ip: realIp || clientIp,
                     remainingSeconds: Math.max(0, Math.round(computedLeft)),
-                    voucherCode: voucherCode
+                    voucherCode: effectiveVoucherCode
                 });
             }
         }
@@ -284,7 +296,7 @@ app.get('/api/check-time', async (req, res) => {
                 mac: realMac,
                 ip: realIp || clientIp,
                 remainingSeconds: 3600,
-                voucherCode: voucherCode || "ACTIVE"
+                voucherCode: effectiveVoucherCode || "ACTIVE"
             });
         }
 
