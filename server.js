@@ -14,7 +14,7 @@ const OMADA_CONFIG = {
     baseUrl: 'https://62.72.47.203:8043',
     clientId: '2d97f4d977fd41cf9c14412269036368',
     clientSecret: '25b6e7c890ea48228f5ef0a52156d9f8',
-    omadaId: 'dd4b631441b02b1d9787466c7bf876f7', // Idinagdag ang '7' sa dulo
+    omadaId: 'dd4b631441b02b1d9787466c7bf876f', // Inalis ang extra na '7' sa dulo
     siteId: '6a615c90e78f4e28047ab010'
 };
 
@@ -27,9 +27,10 @@ const agent = new https.Agent({
 
 async function loginOmada() {
     try {
-        console.log('Nag-uusap sa Omada Open API login (Basic Auth)...');
+        console.log('Nag-uusap sa Omada Open API login (Standard v1 Path)...');
         
-        const tokenUrl = `${OMADA_CONFIG.baseUrl}/openapi/v1/${OMADA_CONFIG.omadaId}/authorize/token`;
+        // Gamitin ang standard Open API token endpoint na walang omadaId sa path
+        const tokenUrl = `${OMADA_CONFIG.baseUrl}/openapi/v1/authorize/token`;
         
         // I-encode ang client_id at client_secret bilang Basic Auth
         const authCredentials = Buffer.from(`${OMADA_CONFIG.clientId}:${OMADA_CONFIG.clientSecret}`).toString('base64');
@@ -46,7 +47,7 @@ async function loginOmada() {
 
         if (response.data && (response.data.errorCode === 0 || response.data.access_token || response.data.result)) {
             omadaToken = response.data.result?.accessToken || response.data.access_token || response.data.result?.token;
-            console.log('SUCCESS: Nakakuha ng Omada Open API Token gamit ang Basic Auth!');
+            console.log('SUCCESS: Nakakuha ng Omada Open API Token!');
             return true;
         } else {
             console.error('Omada API Login Error Response:', response.data);
