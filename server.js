@@ -144,6 +144,29 @@ async function fetchVoucherByCode(code) {
             if (matched) {
                 // DEBUG: makikita natin dito ang TUNAY na field names ng legacy voucher object
                 console.log('MATCHED VOUCHER (LEGACY API) RAW DATA:', JSON.stringify(matched));
+
+                // Subukan din nating kunin ang DETALYE ng ISANG voucher gamit ang ID niya —
+                // baka may pre-computed na Used/Left Time doon na wala sa list view.
+                if (matched.id) {
+                    try {
+                        const detailUrl = `${OMADA_CONFIG.baseUrl}/${OMADA_CONFIG.omadacId}/api/v2/hotspot/sites/${OMADA_CONFIG.siteId}/vouchers/${matched.id}`;
+                        const detailRes = await axios.get(detailUrl, {
+                            httpsAgent: agent,
+                            headers: {
+                                'Csrf-Token': hotspotCsrfToken,
+                                'Cookie': hotspotCookie,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        console.log('VOUCHER DETAIL (by ID) RAW DATA:', JSON.stringify(detailRes.data));
+                        if (detailRes.data && detailRes.data.errorCode === 0 && detailRes.data.result) {
+                            // I-merge natin ang detail sa matched voucher (baka may dagdag na fields dito)
+                            Object.assign(matched, detailRes.data.result);
+                        }
+                    } catch (detailErr) {
+                        console.log('Voucher detail fetch error (baka hindi supported ang endpoint na ito):', detailErr.message);
+                    }
+                }
             } else {
                 console.log(`Walang nahanap na voucher (legacy) na may code: ${code}`);
             }
