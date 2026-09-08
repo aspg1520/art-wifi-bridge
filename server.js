@@ -27,16 +27,17 @@ const agent = new https.Agent({
 
 async function loginOmada() {
     try {
-        console.log('Nag-uusap sa Omada Open API login (kasama ang Omada ID sa path)...');
+        console.log('Nag-uusap sa Omada Open API login (Payload omadaId)...');
         
-        // Isinama ang omadaId sa path para gumana ang authentication ng controller
-        const tokenUrl = `${OMADA_CONFIG.baseUrl}/openapi/v1/${OMADA_CONFIG.omadaId}/authorize/token`;
+        // Standard endpoint na walang omadaId sa path
+        const tokenUrl = `${OMADA_CONFIG.baseUrl}/openapi/v1/authorize/token`;
         
         // I-encode ang client_id at client_secret bilang Basic Auth
         const authCredentials = Buffer.from(`${OMADA_CONFIG.clientId}:${OMADA_CONFIG.clientSecret}`).toString('base64');
         
         const response = await axios.post(tokenUrl, {
-            grant_type: 'client_credentials'
+            grant_type: 'client_credentials',
+            omadaId: OMADA_CONFIG.omadaId // Ipinapasa ang omadaId sa body payload
         }, { 
             httpsAgent: agent,
             headers: { 
