@@ -12,8 +12,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const OMADA_CONFIG = {
     baseUrl: 'https://62.72.47.203:8043',
-    username: 'aspg1520@gmail.com',
-    password: 'Lja231827@@',
+    clientId: '2d97f4d977fd41cf9c14412269036368',
+    clientSecret: '25b6e7c890ea48228f5ef0a52156d9f8',
     omadaId: 'dd4b631441b02b1d9787466c7bf876f',
     siteId: '6a615c90e78f4e28047ab010'
 };
@@ -27,25 +27,23 @@ const agent = new https.Agent({
 
 async function loginOmada() {
     try {
-        console.log('Nag-uusap sa Omada Controller login...');
-        const response = await axios.post(`${OMADA_CONFIG.baseUrl}/api/v2/login`, {
-            username: OMADA_CONFIG.username,
-            password: OMADA_CONFIG.password
+        console.log('Nag-uusap sa Omada Open API login...');
+        // Ang tamang pag-authenticate gamit ang Open API Client Credentials
+        const response = await axios.post(`${OMADA_CONFIG.baseUrl}/api/v2/oauth/token`, {
+            client_id: OMADA_CONFIG.clientId,
+            client_secret: OMADA_CONFIG.clientSecret,
+            grant_type: 'client_credentials'
         }, { 
             httpsAgent: agent,
             headers: { 'Content-Type': 'application/json' }
         });
 
-        if (response.data && response.data.errorCode === 0) {
-            omadaToken = response.data.result.token;
-            const setCookie = response.headers['set-cookie'];
-            if (setCookie) {
-                omadaCookies = setCookie.join('; ');
-            }
-            console.log('SUCCESS: Nakakuha ng Omada Token!');
+        if (response.data && (response.data.errorCode === 0 || response.data.access_token)) {
+            omadaToken = response.data.result?.token || response.data.access_token;
+            console.log('SUCCESS: Nakakuha ng Omada Open API Token!');
             return true;
         } else {
-            console.error('Omada Login Error:', response.data);
+            console.error('Omada API Login Error:', response.data);
             return false;
         }
     } catch (err) {
@@ -63,19 +61,16 @@ app.get('/api/check-time', async (req, res) => {
         if (!omadaToken) {
             let loggedIn = await loginOmada();
             if (!loggedIn) {
-                return res.status(500).json({ success: false, error: 'Hindi makakonekta sa Omada.' });
+                return res.status(500).json({ success: false, error: 'Hindi makakonekta sa Omada API.' });
             }
         }
 
         const headers = {
+            'Authorization': `Bearer ${omadaToken}`,
             'Csrf-Token': omadaToken,
             'Content-Type': 'application/json'
         };
-        if (omadaCookies) {
-            headers['Cookie'] = omadaCookies;
-        }
 
-        // Gamitin ang Open API structure kasama ang Omada ID at Site ID
         const clientApiUrl = `${OMADA_CONFIG.baseUrl}/api/v2/${OMADA_CONFIG.omadaId}/sites/${OMADA_CONFIG.siteId}/clients?currentPage=1&pageSize=500`;
         console.log(`Tinatarget ang Open API Clients URL: ${clientApiUrl}`);
 
@@ -119,9 +114,7 @@ app.get('/api/check-time', async (req, res) => {
             }
         } else {
             console.log("Open API Error Code:", response.data ? response.data.errorCode : 'Unknown');
-            if (response.data && (response.data.errorCode === -1 || response.data.errorCode === -1600)) {
-                omadaToken = null; 
-            }
+            omadaToken = null; 
         }
 
         res.json({ success: false, message: 'Hindi mahanap ang active session.' });
