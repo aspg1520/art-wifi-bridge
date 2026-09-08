@@ -178,23 +178,28 @@ app.get('/api/check-time', async (req, res) => {
             const matchedVoucher = await fetchVoucherByCode(cleanCode);
 
             if (matchedVoucher) {
-                // Karaniwang field names sa Omada vouchers (huhulaan muna, i-confirm sa raw log)
-                const durationSec = (matchedVoucher.duration || 0) * 60; // 'duration' kadalasan nasa MINUTES
-                const usedSec = (matchedVoucher.usedTime || matchedVoucher.used || 0) * 60;
-                const computedLeft = matchedVoucher.remainingTime
-                    ?? matchedVoucher.leftTime
-                    ?? (durationSec ? (durationSec - usedSec) : null);
+                // KUMPIRMADO na ang tamang formula base sa aktwal na data:
+                // duration = minuto ng buong bisa ng voucher
+                // startTime = eksaktong oras (epoch ms) nung na-activate/na-connect
+                // used = 1 kapag na-activate na (hindi ito "used time", bilang lang)
+                const durationSec = (matchedVoucher.duration || 0) * 60;
+                let computedLeft;
 
-                if (computedLeft !== null && computedLeft !== undefined) {
-                    return res.json({
-                        success: true,
-                        mac: clientMac || "NOT_AVAILABLE",
-                        ip: clientIp,
-                        remainingSeconds: Math.max(0, Math.round(computedLeft)),
-                        voucherCode: voucherCode,
-                        debug: matchedVoucher // TANGGALIN NATIN 'TO PAG TAMA NA
-                    });
+                if (matchedVoucher.used && matchedVoucher.used > 0 && matchedVoucher.startTime) {
+                    const elapsedSec = (Date.now() - matchedVoucher.startTime) / 1000;
+                    computedLeft = durationSec - elapsedSec;
+                } else {
+                    // Hindi pa na-activate — buo pa ang oras
+                    computedLeft = durationSec;
                 }
+
+                return res.json({
+                    success: true,
+                    mac: clientMac || "NOT_AVAILABLE",
+                    ip: clientIp,
+                    remainingSeconds: Math.max(0, Math.round(computedLeft)),
+                    voucherCode: voucherCode
+                });
             }
         }
 
