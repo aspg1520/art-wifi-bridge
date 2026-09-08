@@ -27,32 +27,35 @@ const agent = new https.Agent({
 
 async function loginOmada() {
     try {
-        console.log('Nag-uusap sa Omada Open API login...');
+        console.log('Nag-uusap sa Omada Open API login (Basic Auth)...');
         
-        // Gamitin ang tamang Open API authorization token path kasama ang omadaId
         const tokenUrl = `${OMADA_CONFIG.baseUrl}/openapi/v1/${OMADA_CONFIG.omadaId}/authorize/token`;
         
+        // I-encode ang client_id at client_secret bilang Basic Auth
+        const authCredentials = Buffer.from(`${OMADA_CONFIG.clientId}:${OMADA_CONFIG.clientSecret}`).toString('base64');
+        
         const response = await axios.post(tokenUrl, {
-            client_id: OMADA_CONFIG.clientId,
-            client_secret: OMADA_CONFIG.clientSecret,
             grant_type: 'client_credentials'
         }, { 
             httpsAgent: agent,
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${authCredentials}`
+            }
         });
 
         if (response.data && (response.data.errorCode === 0 || response.data.access_token || response.data.result)) {
             omadaToken = response.data.result?.accessToken || response.data.access_token || response.data.result?.token;
-            console.log('SUCCESS: Nakakuha ng Omada Open API Token!');
+            console.log('SUCCESS: Nakakuha ng Omada Open API Token gamit ang Basic Auth!');
             return true;
         } else {
-            console.error('Omada API Login Error:', response.data);
+            console.error('Omada API Login Error Response:', response.data);
             return false;
         }
     } catch (err) {
         console.error('Login Exception:', err.message);
         if (err.response) {
-            console.error('Response Status:', err.response.status);
+            console.error('Response Status:', err.response.status, err.response.data);
         }
         return false;
     }
