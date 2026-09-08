@@ -14,7 +14,7 @@ const OMADA_CONFIG = {
     baseUrl: 'https://62.72.47.203:8043',
     clientId: '2d97f4d977fd41cf9c14412269036368',
     clientSecret: '25b6e7c890ea48228f5ef0a52156d9f8',
-    omadaId: 'dd4b631441b02b1d9787466c7bf876f7', // Kumpleto na may '7' sa dulo galing sa omadacId[cite: 4]
+    omadacId: 'dd4b631441b02b1d9787466c7bf876f7', // kumpirmado galing sa /api/info
     siteId: '6a615c90e78f4e28047ab010'
 };
 
@@ -27,27 +27,22 @@ const agent = new https.Agent({
 
 async function loginOmada() {
     try {
-        console.log('Nag-uusap sa Omada Open API login (Payload omadaId)...');
-        
-        // Standard endpoint na walang omadaId sa path
-        const tokenUrl = `${OMADA_CONFIG.baseUrl}/openapi/v1/authorize/token`;
-        
-        // I-encode ang client_id at client_secret bilang Basic Auth
-        const authCredentials = Buffer.from(`${OMADA_CONFIG.clientId}:${OMADA_CONFIG.clientSecret}`).toString('base64');
-        
+        console.log('Nag-uusap sa Omada Open API login (client_credentials)...');
+
+        // Walang /v1/ sa token endpoint; grant_type ay nasa query string
+        const tokenUrl = `${OMADA_CONFIG.baseUrl}/openapi/authorize/token?grant_type=client_credentials`;
+
         const response = await axios.post(tokenUrl, {
-            grant_type: 'client_credentials',
-            omadaId: OMADA_CONFIG.omadaId // Ipinapasa ang omadaId sa body payload
-        }, { 
+            omadacId: OMADA_CONFIG.omadacId,       // 'omadacId' (may 'c') ang inaasahang key ng Omada API
+            client_id: OMADA_CONFIG.clientId,
+            client_secret: OMADA_CONFIG.clientSecret
+        }, {
             httpsAgent: agent,
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${authCredentials}`
-            }
+            headers: { 'Content-Type': 'application/json' }
         });
 
-        if (response.data && (response.data.errorCode === 0 || response.data.access_token || response.data.result)) {
-            omadaToken = response.data.result?.accessToken || response.data.access_token || response.data.result?.token;
+        if (response.data && response.data.errorCode === 0 && response.data.result) {
+            omadaToken = response.data.result.accessToken;
             console.log('SUCCESS: Nakakuha ng Omada Open API Token!');
             return true;
         } else {
@@ -77,12 +72,12 @@ app.get('/api/check-time', async (req, res) => {
         }
 
         const headers = {
-            'Authorization': `Bearer ${omadaToken}`,
-            'Csrf-Token': omadaToken,
+            'Authorization': `AccessToken=${omadaToken}`,
             'Content-Type': 'application/json'
         };
 
-        const clientApiUrl = `${OMADA_CONFIG.baseUrl}/api/v2/${OMADA_CONFIG.omadaId}/sites/${OMADA_CONFIG.siteId}/clients?currentPage=1&pageSize=500`;
+        // Open API v1 path, may omadacId (kumpirmado sa /api/info), hindi /api/v2/
+        const clientApiUrl = `${OMADA_CONFIG.baseUrl}/openapi/v1/${OMADA_CONFIG.omadacId}/sites/${OMADA_CONFIG.siteId}/clients?page=1&pageSize=500`;
         console.log(`Tinatarget ang Open API Clients URL: ${clientApiUrl}`);
 
         const response = await axios.get(clientApiUrl, {
