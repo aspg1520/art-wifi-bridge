@@ -18,8 +18,18 @@ const OMADA_CONFIG = {
     siteId: '6a615c90e78f4e28047ab010'
 };
 
+// Operator account para sa LEGACY hotspot API (ibang login flow, cookie-based)
+// — dito lang makukuha ang eksaktong Used Time / Left Time ng bawat voucher.
+const HOTSPOT_OPERATOR = {
+    username: '85140442',
+    password: 'MSFKServer-85140442'
+};
+
 let omadaToken = null;
 let omadaCookies = null;
+
+let hotspotCsrfToken = null;
+let hotspotCookie = null;
 
 const agent = new https.Agent({  
     rejectUnauthorized: false
@@ -58,6 +68,91 @@ async function loginOmada() {
     }
 }
 
+// LEGACY Hotspot login (cookie + CSRF-Token based, IBA sa OAuth Open API sa itaas)
+async function loginHotspotOperator() {
+    try {
+        console.log('Nag-uusap sa Hotspot Operator login (legacy)...');
+        const loginUrl = `${OMADA_CONFIG.baseUrl}/${OMADA_CONFIG.omadacId}/api/v2/hotspot/login`;
+
+        const response = await axios.post(loginUrl, {
+            name: HOTSPOT_OPERATOR.username,
+            password: HOTSPOT_OPERATOR.password
+        }, {
+            httpsAgent: agent,
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (response.data && response.data.errorCode === 0 && response.data.result) {
+            hotspotCsrfToken = response.data.result.token;
+
+            const setCookieHeader = response.headers['set-cookie'];
+            if (setCookieHeader && setCookieHeader.length) {
+                hotspotCookie = setCookieHeader.map(c => c.split(';')[0]).join('; ');
+            }
+
+            console.log('SUCCESS: Naka-login ang Hotspot Operator! Cookie:', hotspotCookie ? 'meron' : 'WALA (problema ito)');
+            return true;
+        } else {
+            console.error('Hotspot Operator Login Error:', response.data);
+            return false;
+        }
+    } catch (err) {
+        console.error('Hotspot Login Exception:', err.message);
+        if (err.response) {
+            console.error('Response Status:', err.response.status, err.response.data);
+        }
+        return false;
+    }
+}
+
+// Kunin ang voucher list gamit ang legacy cookie session, hanapin ang tugmang code
+async function fetchVoucherByCode(code) {
+    if (!hotspotCsrfToken || !hotspotCookie) {
+        const ok = await loginHotspotOperator();
+        if (!ok) return null;
+    }
+
+    try {
+        const vouchersUrl = `${OMADA_CONFIG.baseUrl}/${OMADA_CONFIG.omadacId}/api/v2/hotspot/sites/${OMADA_CONFIG.siteId}/vouchers?currentPage=1&currentPageSize=500&status=All`;
+
+        const response = await axios.get(vouchersUrl, {
+            httpsAgent: agent,
+            headers: {
+                'Csrf-Token': hotspotCsrfToken,
+                'Cookie': hotspotCookie,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.data && response.data.errorCode === 0) {
+            const vouchers = response.data.result.data || response.data.result || [];
+            console.log(`Vouchers (legacy) nakuha: ${vouchers.length}`);
+            const matched = vouchers.find(v => (v.code || '').toString().trim() === code.trim());
+
+            if (matched) {
+                // DEBUG: makikita natin dito ang TUNAY na field names ng legacy voucher object
+                console.log('MATCHED VOUCHER (LEGACY API) RAW DATA:', JSON.stringify(matched));
+            } else {
+                console.log(`Walang nahanap na voucher (legacy) na may code: ${code}`);
+            }
+            return matched || null;
+        } else {
+            console.log('Vouchers (legacy) API Error:', response.data);
+            hotspotCsrfToken = null;
+            hotspotCookie = null;
+            return null;
+        }
+    } catch (err) {
+        console.error('Voucher fetch (legacy) error:', err.message);
+        if (err.response) {
+            console.error('Response Status:', err.response.status, err.response.data);
+        }
+        hotspotCsrfToken = null;
+        hotspotCookie = null;
+        return null;
+    }
+}
+
 app.get('/api/check-time', async (req, res) => {
     let clientMac = req.query.mac;
     let voucherCode = req.query.voucher || req.query.username;
@@ -76,47 +171,30 @@ app.get('/api/check-time', async (req, res) => {
             'Content-Type': 'application/json'
         };
 
-        // 1. Kung may voucher code, tignan muna natin diretso sa Vouchers list
+        // 1. Kung may voucher code, tignan muna natin diretso sa LEGACY Vouchers list
         // — dito galing ang tunay na "Used Time" / "Left Time" na nakikita mo sa admin dashboard.
         if (voucherCode && voucherCode !== 'ACTIVE' && voucherCode !== 'INPUT CODE BELOW') {
-            try {
-                const voucherApiUrl = `${OMADA_CONFIG.baseUrl}/openapi/v1/${OMADA_CONFIG.omadacId}/sites/${OMADA_CONFIG.siteId}/hotspot/vouchers?page=1&pageSize=500`;
-                const voucherRes = await axios.get(voucherApiUrl, { headers, httpsAgent: agent });
+            const cleanCode = voucherCode.trim();
+            const matchedVoucher = await fetchVoucherByCode(cleanCode);
 
-                if (voucherRes.data && voucherRes.data.errorCode === 0) {
-                    const vouchers = voucherRes.data.result.data || voucherRes.data.result || [];
-                    const cleanCode = voucherCode.trim();
-                    const matchedVoucher = vouchers.find(v => (v.code || '').toString().trim() === cleanCode);
+            if (matchedVoucher) {
+                // Karaniwang field names sa Omada vouchers (huhulaan muna, i-confirm sa raw log)
+                const durationSec = (matchedVoucher.duration || 0) * 60; // 'duration' kadalasan nasa MINUTES
+                const usedSec = (matchedVoucher.usedTime || matchedVoucher.used || 0) * 60;
+                const computedLeft = matchedVoucher.remainingTime
+                    ?? matchedVoucher.leftTime
+                    ?? (durationSec ? (durationSec - usedSec) : null);
 
-                    if (matchedVoucher) {
-                        // DEBUG: makikita natin dito sa Render logs ang TUNAY na field names
-                        console.log('MATCHED VOUCHER RAW DATA:', JSON.stringify(matchedVoucher));
-
-                        // Karaniwang field names sa Omada vouchers (huhulaan muna, i-confirm sa raw log sa itaas)
-                        const durationSec = (matchedVoucher.duration || 0) * 60; // 'duration' kadalasan nasa MINUTES
-                        const usedSec = (matchedVoucher.usedTime || matchedVoucher.used || 0) * 60;
-                        const computedLeft = matchedVoucher.remainingTime
-                            ?? matchedVoucher.leftTime
-                            ?? (durationSec ? (durationSec - usedSec) : null);
-
-                        if (computedLeft !== null && computedLeft !== undefined) {
-                            return res.json({
-                                success: true,
-                                mac: clientMac || "NOT_AVAILABLE",
-                                ip: clientIp,
-                                remainingSeconds: Math.max(0, Math.round(computedLeft)),
-                                voucherCode: voucherCode,
-                                debug: matchedVoucher // TANGGALIN NATIN 'TO PAG TAMA NA
-                            });
-                        }
-                    } else {
-                        console.log(`Walang nahanap na voucher na may code: ${cleanCode}`);
-                    }
-                } else {
-                    console.log('Vouchers API Error Code:', voucherRes.data ? voucherRes.data.errorCode : 'Unknown');
+                if (computedLeft !== null && computedLeft !== undefined) {
+                    return res.json({
+                        success: true,
+                        mac: clientMac || "NOT_AVAILABLE",
+                        ip: clientIp,
+                        remainingSeconds: Math.max(0, Math.round(computedLeft)),
+                        voucherCode: voucherCode,
+                        debug: matchedVoucher // TANGGALIN NATIN 'TO PAG TAMA NA
+                    });
                 }
-            } catch (voucherErr) {
-                console.error('Voucher fetch error:', voucherErr.message);
             }
         }
 
