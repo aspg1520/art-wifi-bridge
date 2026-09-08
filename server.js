@@ -127,7 +127,19 @@ async function fetchVoucherByCode(code) {
         if (response.data && response.data.errorCode === 0) {
             const vouchers = response.data.result.data || response.data.result || [];
             console.log(`Vouchers (legacy) nakuha: ${vouchers.length}`);
-            const matched = vouchers.find(v => (v.code || '').toString().trim() === code.trim());
+
+            // Posibleng may DUPLICATE na code sa magkaibang voucher group —
+            // kunin lahat ng tugma, tapos piliin yung PINAKA-BAGONG na-activate (pinakamalaking startTime).
+            const allMatches = vouchers.filter(v => (v.code || '').toString().trim() === code.trim());
+
+            if (allMatches.length > 1) {
+                console.log(`BABALA: ${allMatches.length} vouchers may parehong code na "${code}" — pipiliin yung pinaka-bagong na-activate.`);
+            }
+
+            const matched = allMatches.reduce((best, v) => {
+                if (!best) return v;
+                return (v.startTime || 0) > (best.startTime || 0) ? v : best;
+            }, null);
 
             if (matched) {
                 // DEBUG: makikita natin dito ang TUNAY na field names ng legacy voucher object
@@ -171,7 +183,46 @@ app.get('/api/check-time', async (req, res) => {
             'Content-Type': 'application/json'
         };
 
-        // 1. Kung may voucher code, tignan muna natin diretso sa LEGACY Vouchers list
+        // 1. Kunin muna ang connected clients list (Open API) — dito galing ang TUNAY na MAC/IP
+        // ng device, tinutugma gamit ang 'authInfo' (naglalaman ng voucher code na ginamit nila).
+        let realMac = null;
+        let realIp = null;
+
+        try {
+            const clientApiUrl = `${OMADA_CONFIG.baseUrl}/openapi/v1/${OMADA_CONFIG.omadacId}/sites/${OMADA_CONFIG.siteId}/clients?page=1&pageSize=500`;
+            const clientsRes = await axios.get(clientApiUrl, { headers, httpsAgent: agent });
+
+            if (clientsRes.data && clientsRes.data.errorCode === 0) {
+                const clients = clientsRes.data.result.data || clientsRes.data.result || [];
+                console.log(`Active clients nakuha: ${clients.length}`);
+
+                let matchedClient = null;
+
+                if (voucherCode && voucherCode !== 'ACTIVE' && voucherCode !== 'INPUT CODE BELOW') {
+                    const cleanCode = voucherCode.trim();
+                    matchedClient = clients.find(c =>
+                        (c.authInfo || []).some(a => (a.info || '').toString().trim() === cleanCode)
+                    );
+                }
+
+                if (!matchedClient && clientMac && clientMac !== 'NOT_AVAILABLE') {
+                    matchedClient = clients.find(c => c.mac && c.mac.toLowerCase() === clientMac.toLowerCase());
+                }
+
+                if (matchedClient) {
+                    console.log('MATCHED CLIENT (para sa MAC/IP) RAW DATA:', JSON.stringify(matchedClient));
+                    realMac = matchedClient.mac || null;
+                    realIp = matchedClient.ip || null;
+                }
+            } else {
+                console.log("Open API Error Code:", clientsRes.data ? clientsRes.data.errorCode : 'Unknown');
+                if (clientsRes.data && clientsRes.data.errorCode === -44112) omadaToken = null; // expired token, i-refresh sa susunod
+            }
+        } catch (clientErr) {
+            console.error('Client fetch error:', clientErr.message);
+        }
+
+        // 2. Kunin ang TUNAY na remaining time mula sa LEGACY Vouchers list
         // — dito galing ang tunay na "Used Time" / "Left Time" na nakikita mo sa admin dashboard.
         if (voucherCode && voucherCode !== 'ACTIVE' && voucherCode !== 'INPUT CODE BELOW') {
             const cleanCode = voucherCode.trim();
@@ -195,60 +246,23 @@ app.get('/api/check-time', async (req, res) => {
 
                 return res.json({
                     success: true,
-                    mac: clientMac || "NOT_AVAILABLE",
-                    ip: clientIp,
+                    mac: realMac || clientMac || "NOT_AVAILABLE",
+                    ip: realIp || clientIp,
                     remainingSeconds: Math.max(0, Math.round(computedLeft)),
                     voucherCode: voucherCode
                 });
             }
         }
 
-        // 2. Fallback: tignan sa connected clients list (para sa MAC-based lookup)
-        const clientApiUrl = `${OMADA_CONFIG.baseUrl}/openapi/v1/${OMADA_CONFIG.omadacId}/sites/${OMADA_CONFIG.siteId}/clients?page=1&pageSize=500`;
-        console.log(`Tinatarget ang Open API Clients URL: ${clientApiUrl}`);
-
-        const response = await axios.get(clientApiUrl, {
-            headers: headers,
-            httpsAgent: agent
-        });
-
-        if (response.data && response.data.errorCode === 0) {
-            const clients = response.data.result.data || response.data.result || [];
-            console.log(`Active clients nakuha: ${clients.length}`);
-
-            let matchedClient = null;
-
-            if (voucherCode && voucherCode !== 'ACTIVE' && voucherCode !== 'INPUT CODE BELOW') {
-                const cleanCode = voucherCode.trim().toLowerCase();
-                matchedClient = clients.find(c => {
-                    const textBlob = JSON.stringify(c).toLowerCase();
-                    return textBlob.includes(cleanCode);
-                });
-            }
-
-            if (!matchedClient && clientMac && clientMac !== 'NOT_AVAILABLE') {
-                matchedClient = clients.find(c => c.mac && c.mac.toLowerCase() === clientMac.toLowerCase());
-            }
-
-            if (!matchedClient && clients.length === 1) {
-                matchedClient = clients[0];
-            }
-
-            if (matchedClient) {
-                console.log('MATCHED CLIENT RAW DATA:', JSON.stringify(matchedClient));
-                const remainingSeconds = matchedClient.remainingTime || matchedClient.duration || matchedClient.leftTime || matchedClient.remainTime || matchedClient.validTime || 3600;
-                
-                return res.json({
-                    success: true,
-                    mac: matchedClient.mac || clientMac || "NOT_AVAILABLE",
-                    ip: matchedClient.ip || clientIp,
-                    remainingSeconds: remainingSeconds,
-                    voucherCode: voucherCode || matchedClient.authName || matchedClient.name || "ACTIVE"
-                });
-            }
-        } else {
-            console.log("Open API Error Code:", response.data ? response.data.errorCode : 'Unknown');
-            omadaToken = null; 
+        // 3. Fallback: kung walang nahanap na voucher pero may nahanap na client (walang code, MAC-based lang)
+        if (realMac) {
+            return res.json({
+                success: true,
+                mac: realMac,
+                ip: realIp || clientIp,
+                remainingSeconds: 3600,
+                voucherCode: voucherCode || "ACTIVE"
+            });
         }
 
         res.json({ success: false, message: 'Hindi mahanap ang active session.' });
