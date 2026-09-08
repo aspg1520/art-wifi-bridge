@@ -14,7 +14,7 @@ const OMADA_CONFIG = {
     baseUrl: 'https://62.72.47.203:8043',
     clientId: '2d97f4d977fd41cf9c14412269036368',
     clientSecret: '25b6e7c890ea48228f5ef0a52156d9f8',
-    omadaId: 'dd4b631441b02b1d9787466c7bf876f7', // Kumpleto na may '7' sa dulo galing sa omadacId
+    omadaId: 'dd4b631441b02b1d9787466c7bf876f7', // Kumpleto na may '7' sa dulo galing sa omadacId[cite: 4]
     siteId: '6a615c90e78f4e28047ab010'
 };
 
@@ -27,10 +27,10 @@ const agent = new https.Agent({
 
 async function loginOmada() {
     try {
-        console.log('Nag-uusap sa Omada Open API login (Standard Endpoint)...');
+        console.log('Nag-uusap sa Omada Open API login (kasama ang Omada ID sa path)...');
         
-        // Gamitin ang standard Open API v1 token endpoint nang walang omadaId sa path
-        const tokenUrl = `${OMADA_CONFIG.baseUrl}/openapi/v1/authorize/token`;
+        // Isinama ang omadaId sa path para gumana ang authentication ng controller
+        const tokenUrl = `${OMADA_CONFIG.baseUrl}/openapi/v1/${OMADA_CONFIG.omadaId}/authorize/token`;
         
         // I-encode ang client_id at client_secret bilang Basic Auth
         const authCredentials = Buffer.from(`${OMADA_CONFIG.clientId}:${OMADA_CONFIG.clientSecret}`).toString('base64');
