@@ -76,7 +76,51 @@ app.get('/api/check-time', async (req, res) => {
             'Content-Type': 'application/json'
         };
 
-        // Open API v1 path, may omadacId (kumpirmado sa /api/info), hindi /api/v2/
+        // 1. Kung may voucher code, tignan muna natin diretso sa Vouchers list
+        // — dito galing ang tunay na "Used Time" / "Left Time" na nakikita mo sa admin dashboard.
+        if (voucherCode && voucherCode !== 'ACTIVE' && voucherCode !== 'INPUT CODE BELOW') {
+            try {
+                const voucherApiUrl = `${OMADA_CONFIG.baseUrl}/openapi/v1/${OMADA_CONFIG.omadacId}/sites/${OMADA_CONFIG.siteId}/hotspot/vouchers?page=1&pageSize=500`;
+                const voucherRes = await axios.get(voucherApiUrl, { headers, httpsAgent: agent });
+
+                if (voucherRes.data && voucherRes.data.errorCode === 0) {
+                    const vouchers = voucherRes.data.result.data || voucherRes.data.result || [];
+                    const cleanCode = voucherCode.trim();
+                    const matchedVoucher = vouchers.find(v => (v.code || '').toString().trim() === cleanCode);
+
+                    if (matchedVoucher) {
+                        // DEBUG: makikita natin dito sa Render logs ang TUNAY na field names
+                        console.log('MATCHED VOUCHER RAW DATA:', JSON.stringify(matchedVoucher));
+
+                        // Karaniwang field names sa Omada vouchers (huhulaan muna, i-confirm sa raw log sa itaas)
+                        const durationSec = (matchedVoucher.duration || 0) * 60; // 'duration' kadalasan nasa MINUTES
+                        const usedSec = (matchedVoucher.usedTime || matchedVoucher.used || 0) * 60;
+                        const computedLeft = matchedVoucher.remainingTime
+                            ?? matchedVoucher.leftTime
+                            ?? (durationSec ? (durationSec - usedSec) : null);
+
+                        if (computedLeft !== null && computedLeft !== undefined) {
+                            return res.json({
+                                success: true,
+                                mac: clientMac || "NOT_AVAILABLE",
+                                ip: clientIp,
+                                remainingSeconds: Math.max(0, Math.round(computedLeft)),
+                                voucherCode: voucherCode,
+                                debug: matchedVoucher // TANGGALIN NATIN 'TO PAG TAMA NA
+                            });
+                        }
+                    } else {
+                        console.log(`Walang nahanap na voucher na may code: ${cleanCode}`);
+                    }
+                } else {
+                    console.log('Vouchers API Error Code:', voucherRes.data ? voucherRes.data.errorCode : 'Unknown');
+                }
+            } catch (voucherErr) {
+                console.error('Voucher fetch error:', voucherErr.message);
+            }
+        }
+
+        // 2. Fallback: tignan sa connected clients list (para sa MAC-based lookup)
         const clientApiUrl = `${OMADA_CONFIG.baseUrl}/openapi/v1/${OMADA_CONFIG.omadacId}/sites/${OMADA_CONFIG.siteId}/clients?page=1&pageSize=500`;
         console.log(`Tinatarget ang Open API Clients URL: ${clientApiUrl}`);
 
@@ -108,6 +152,7 @@ app.get('/api/check-time', async (req, res) => {
             }
 
             if (matchedClient) {
+                console.log('MATCHED CLIENT RAW DATA:', JSON.stringify(matchedClient));
                 const remainingSeconds = matchedClient.remainingTime || matchedClient.duration || matchedClient.leftTime || matchedClient.remainTime || matchedClient.validTime || 3600;
                 
                 return res.json({
