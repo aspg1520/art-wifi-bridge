@@ -12,8 +12,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const OMADA_CONFIG = {
     baseUrl: 'https://62.72.47.203:8043',
-    clientId: '2d97f4d977fd41cf9c14412269036368',
-    clientSecret: '25b6e7c890ea48228f5ef0a52156d9f8',
+    clientId: 'f667b9a2cf204791853815625ea55072',
+    clientSecret: '0eb1d714a8b54de8b7b5c63a541d2a67',
     omadacId: 'dd4b631441b02b1d9787466c7bf876f7', // kumpirmado galing sa /api/info
     siteId: '6a615c90e78f4e28047ab010'
 };
