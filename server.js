@@ -28,8 +28,11 @@ const agent = new https.Agent({
 async function loginOmada() {
     try {
         console.log('Nag-uusap sa Omada Open API login...');
-        // Ang tamang pag-authenticate gamit ang Open API Client Credentials
-        const response = await axios.post(`${OMADA_CONFIG.baseUrl}/api/v2/oauth/token`, {
+        
+        // Gamitin ang tamang Open API authorization token path kasama ang omadaId
+        const tokenUrl = `${OMADA_CONFIG.baseUrl}/openapi/v1/${OMADA_CONFIG.omadaId}/authorize/token`;
+        
+        const response = await axios.post(tokenUrl, {
             client_id: OMADA_CONFIG.clientId,
             client_secret: OMADA_CONFIG.clientSecret,
             grant_type: 'client_credentials'
@@ -38,8 +41,8 @@ async function loginOmada() {
             headers: { 'Content-Type': 'application/json' }
         });
 
-        if (response.data && (response.data.errorCode === 0 || response.data.access_token)) {
-            omadaToken = response.data.result?.token || response.data.access_token;
+        if (response.data && (response.data.errorCode === 0 || response.data.access_token || response.data.result)) {
+            omadaToken = response.data.result?.accessToken || response.data.access_token || response.data.result?.token;
             console.log('SUCCESS: Nakakuha ng Omada Open API Token!');
             return true;
         } else {
@@ -48,6 +51,9 @@ async function loginOmada() {
         }
     } catch (err) {
         console.error('Login Exception:', err.message);
+        if (err.response) {
+            console.error('Response Status:', err.response.status);
+        }
         return false;
     }
 }
