@@ -306,7 +306,8 @@
             let savedVoucher = localStorage.getItem('art_wifi_voucher');
             if (savedVoucher) {
                 document.getElementById('voucher-display').innerText = savedVoucher;
-                document.getElementById('voucher-input').value = savedVoucher;
+                // Sadyang hindi na inilalagay sa voucher-input para laging malinis/blangko
+                // ang text box tuwing binubuksan ang page nang walang URL param.
             }
         }
     }
