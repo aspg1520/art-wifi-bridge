@@ -14,6 +14,7 @@ const OMADA_CONFIG = {
     baseUrl: 'https://62.72.47.203:8043',
     clientId: '2d97f4d977fd41cf9c14412269036368',
     clientSecret: '25b6e7c890ea48228f5ef0a52156d9f8',
+    omadaId: 'dd4b631441b02b1d9787466c7bf876f7', // Kumpleto na may '7' sa dulo galing sa omadacId
     siteId: '6a615c90e78f4e28047ab010'
 };
 
