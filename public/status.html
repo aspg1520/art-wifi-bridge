@@ -186,6 +186,10 @@
 
         <div class="info-group">
             <div class="info-row">
+                <span class="info-label">MAC Address:</span>
+                <span class="info-value" id="val-mac">Detecting...</span>
+            </div>
+            <div class="info-row">
                 <span class="info-label">User Name:</span>
                 <span class="info-value" id="val-username">Detecting...</span>
             </div>
@@ -236,6 +240,9 @@
         ssidName = params.get('ssidName') || params.get('ssid') || '';
         cliToken = params.get('cliToken') || '';
 
+        if (clientMac) {
+            document.getElementById('val-mac').innerText = clientMac;
+        }
         if (usernameParam) {
             document.getElementById('val-username').innerText = usernameParam;
         }
@@ -302,7 +309,10 @@
 
             if (data.success) {
                 if (data.ip) document.getElementById('val-ip').innerText = data.ip;
-                if (data.mac && !clientMac) clientMac = data.mac;
+                if (data.mac) {
+                    clientMac = data.mac;
+                    document.getElementById('val-mac').innerText = clientMac;
+                }
                 if (data.voucherCode && data.voucherCode !== 'ACTIVE') {
                     document.getElementById('val-username').innerText = data.voucherCode;
                 }
