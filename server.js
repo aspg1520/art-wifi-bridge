@@ -18,6 +18,10 @@ const OMADA_CONFIG = {
     siteId: '6a615c90e78f4e28047ab010'
 };
 
+// Guest-facing na portal API (IBANG port — 8080, walang login/token na kailangan,
+// sinasagot lang gamit ang clientMac+apMac+ssidName+cliToken mula sa URL ng captive portal)
+const PORTAL_BASE_URL = 'http://62.72.47.203:8080';
+
 // Operator account para sa LEGACY hotspot API (ibang login flow, cookie-based)
 // — dito lang makukuha ang eksaktong Used Time / Left Time ng bawat voucher.
 const HOTSPOT_OPERATOR = {
@@ -188,10 +192,61 @@ async function fetchVoucherByCode(code) {
     }
 }
 
+// BAGONG paraan — direkta at eksakto: tumatawag sa parehong endpoint na ginagamit
+// ng OPISYAL na Omada success page mismo (nahanap gamit ang browser DevTools).
+// Walang kailangang login — sinasagot base sa clientMac+apMac+ssidName+cliToken
+// na ibinibigay ni Omada sa URL pagkatapos mag-authenticate ang device.
+async function fetchLivePortalSession(clientMac, apMac, ssidName, cliToken) {
+    try {
+        const url = `${PORTAL_BASE_URL}/portal/getLogoutPageSetting`;
+        const response = await axios.post(url, {
+            clientMac,
+            apMac,
+            ssidName,
+            cliToken
+        }, {
+            headers: { 'Content-Type': 'application/json;charset=utf-8' },
+            timeout: 8000
+        });
+
+        console.log('LIVE PORTAL SESSION RAW DATA:', JSON.stringify(response.data));
+
+        if (response.data && response.data.errorCode === 0 && response.data.result) {
+            return response.data.result;
+        }
+        console.log('Live portal session error:', response.data);
+        return null;
+    } catch (err) {
+        console.error('Live portal session fetch error:', err.message);
+        return null;
+    }
+}
+
 app.get('/api/check-time', async (req, res) => {
-    let clientMac = req.query.mac;
+    let clientMac = req.query.mac || req.query.clientMac;
     let voucherCode = req.query.voucher || req.query.username;
     let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+    // Mga bagong parameter na galing sa URL ng Omada pagkatapos mag-authenticate —
+    // kung kumpleto ito, ito ang PINAKA-EKSAKTONG paraan (parehong endpoint ng
+    // opisyal na Omada success page mismo).
+    const apMac = req.query.apMac;
+    const ssidName = req.query.ssidName || req.query.ssid;
+    const cliToken = req.query.cliToken;
+
+    if (clientMac && apMac && ssidName && cliToken) {
+        const liveSession = await fetchLivePortalSession(clientMac, apMac, ssidName, cliToken);
+        if (liveSession && typeof liveSession.timeLeft !== 'undefined') {
+            return res.json({
+                success: true,
+                mac: clientMac,
+                ip: liveSession.ip || clientIp,
+                remainingSeconds: Math.max(0, Math.round(liveSession.timeLeft)),
+                voucherCode: liveSession.username || voucherCode || "ACTIVE"
+            });
+        }
+        // Kung na-fail ito (hal. expired na ang cliToken), magpatuloy sa lumang paraan sa ibaba.
+    }
 
     try {
         if (!omadaToken) {
