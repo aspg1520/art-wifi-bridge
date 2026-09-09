@@ -242,7 +242,9 @@ app.get('/api/check-time', async (req, res) => {
                 mac: clientMac,
                 ip: liveSession.ip || clientIp,
                 remainingSeconds: Math.max(0, Math.round(liveSession.timeLeft)),
-                voucherCode: liveSession.username || voucherCode || "ACTIVE"
+                voucherCode: liveSession.username || voucherCode || "ACTIVE",
+                uptime: typeof liveSession.uptime !== 'undefined' ? liveSession.uptime : undefined,
+                usedTime: typeof liveSession.timeUsed !== 'undefined' ? liveSession.timeUsed : undefined
             });
         }
         // Kung na-fail ito (hal. expired na ang cliToken), magpatuloy sa lumang paraan sa ibaba.
@@ -362,6 +364,43 @@ app.get('/api/check-time', async (req, res) => {
         omadaToken = null;
         res.status(500).json({ success: false, error: 'Server communication error' });
     }
+});
+
+// I-a-attempt tawagin ang aktwal na Omada portal logout (parehong pattern ng
+// getLogoutPageSetting) — kung sakaling may cliToken pa tayo. Hindi 100% kumpirmado
+// ang eksaktong payload nito dahil hindi pa natin nahuli sa DevTools ang totoong
+// logout network call, kaya defensive tayo dito: kahit mag-fail ang aktwal na
+// deauth call sa Omada, ibabalik pa rin natin success sa browser para ma-clear
+// ang lokal na session state ng user.
+app.get('/api/logout', async (req, res) => {
+    const clientMac = req.query.mac || req.query.clientMac;
+    const apMac = req.query.apMac;
+    const ssidName = req.query.ssidName || req.query.ssid;
+    const cliToken = req.query.cliToken;
+
+    if (clientMac && apMac && ssidName && cliToken) {
+        try {
+            const url = `${PORTAL_BASE_URL}/portal/logout`;
+            const response = await axios.post(url, {
+                clientMac,
+                apMac,
+                ssidName,
+                cliToken
+            }, {
+                headers: { 'Content-Type': 'application/json;charset=utf-8' },
+                timeout: 8000
+            });
+            console.log('PORTAL LOGOUT RAW DATA:', JSON.stringify(response.data));
+        } catch (err) {
+            console.error('Portal logout error (hindi kumpirmado ang endpoint na ito):', err.message);
+            // Hindi natin i-fa-fail ang request sa user kahit mag-error dito —
+            // basta na-clear ang lokal na session state niya sa browser.
+        }
+    } else {
+        console.log('Logout request: kulang ang parameters para sa aktwal na Omada logout (mac/apMac/ssidName/cliToken).');
+    }
+
+    res.json({ success: true });
 });
 
 app.get('/', (req, res) => {

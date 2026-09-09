@@ -15,8 +15,6 @@
             --dark-card: #0d1b3e;
             --border-radius: 16px;
             --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            --button-height: 44px;
-            --font-size: 14px;
         }
 
         html, body {
@@ -54,7 +52,7 @@
             max-height: 96dvh;
             background: rgba(13, 27, 62, 0.96);
             border-radius: var(--border-radius);
-            padding: 20px 14px;
+            padding: 18px 14px;
             text-align: center;
             border: 2px solid rgba(0, 240, 255, 0.5);
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
@@ -65,7 +63,6 @@
             flex-direction: column;
             justify-content: center;
             box-sizing: border-box;
-            transform: translate3d(0, 0, 0);
             animation: cardBreathingGlow 4s infinite ease-in-out;
             -webkit-overflow-scrolling: touch;
         }
@@ -86,7 +83,7 @@
             border: 1px solid rgba(0, 240, 255, 0.3);
             border-radius: 12px;
             padding: 4px 12px;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
             color: #ffffff;
             letter-spacing: 0.5px;
         }
@@ -107,8 +104,8 @@
 
         .logo-header {
             width: 100%; 
-            max-width: 130px; 
-            margin: 0 auto 8px auto; 
+            max-width: 110px; 
+            margin: 0 auto 6px auto; 
             display: block;
             animation: bounceLogo 2.5s infinite ease-in-out;
         }
@@ -121,41 +118,32 @@
         .form-title-container {
             width: 100%;
             border: solid 1.5px var(--neon-cyan);
-            border-radius: 14px;
-            margin: 4px auto 10px auto;
+            border-radius: 12px;
+            margin: 2px auto 8px auto;
             overflow: hidden;
             background: rgba(0, 240, 255, 0.03);
             box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
-            padding: 6px 8px;
+            padding: 5px 8px;
             box-sizing: border-box;
         }
 
         .form-title {
-            font-size: 15px; 
+            font-size: 14px; 
             font-weight: 900; 
             margin: 0;
             color: #ffffff;
             text-transform: uppercase; 
-            letter-spacing: 1.5px;
+            letter-spacing: 1px;
             text-shadow: 0 0 8px var(--neon-cyan);
             text-align: center;
-        }
-
-        .timer-box {
-            font-size: 36px;
-            font-weight: 900;
-            margin: 10px 0;
-            font-family: monospace;
-            color: var(--neon-cyan);
-            text-shadow: 0 0 12px rgba(0, 240, 255, 0.4);
         }
 
         .info-group {
             background: rgba(0, 240, 255, 0.04);
             border: 1px solid rgba(0, 240, 255, 0.2);
-            padding: 10px 12px;
+            padding: 8px 12px;
             border-radius: 12px;
-            margin-top: 8px;
+            margin-top: 4px;
             text-align: left;
             font-size: 12px;
         }
@@ -163,7 +151,7 @@
         .info-row {
             display: flex;
             justify-content: space-between;
-            margin: 6px 0;
+            margin: 5px 0;
         }
 
         .info-label {
@@ -177,46 +165,23 @@
             font-family: monospace;
         }
 
-        /* Manual Check Form Styles */
-        .manual-box {
-            margin-top: 12px;
-            background: rgba(0, 240, 255, 0.03);
-            border: 1px solid rgba(0, 240, 255, 0.25);
-            padding: 10px;
-            border-radius: 12px;
-        }
-
-        .voucher-input {
+        .logout-btn {
             width: 100%;
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid var(--neon-cyan);
-            background: rgba(2, 8, 29, 0.8);
-            color: #fff;
-            text-align: center;
-            font-size: 15px;
-            font-family: monospace;
-            box-sizing: border-box;
-            margin-bottom: 8px;
-            outline: none;
-            letter-spacing: 1px;
-        }
-
-        .check-btn {
-            width: 100%;
-            height: 38px;
-            border-radius: 8px;
-            background: var(--neon-cyan);
-            color: #02081d;
+            height: 42px;
+            border-radius: 10px;
+            background: var(--danger-red);
+            color: #ffffff;
             font-weight: 900;
             border: none;
             cursor: pointer;
-            font-size: 13px;
-            letter-spacing: 0.5px;
+            font-size: 14px;
+            letter-spacing: 1px;
+            margin-top: 12px;
+            box-shadow: 0 0 12px rgba(255, 51, 51, 0.4);
             transition: 0.2s;
         }
 
-        .check-btn:active {
+        .logout-btn:active {
             transform: scale(0.98);
             opacity: 0.9;
         }
@@ -225,12 +190,12 @@
             color: var(--neon-cyan); 
             font-size: 10px; 
             font-weight: 600; 
-            margin-top: 10px; 
+            margin-top: 8px; 
             display: block; 
             line-height: 1.3;
             background: rgba(0, 240, 255, 0.05);
             border: 1px dashed rgba(0, 240, 255, 0.3);
-            padding: 6px 10px;
+            padding: 5px 8px;
             border-radius: 8px;
             box-sizing: border-box;
         }
@@ -242,226 +207,194 @@
     <div class="main-card">
         <div class="network-status-badge">
             <span class="status-dot"></span>
-            <span id="status-text">CONNECTED</span>
-            <span style="opacity: 0.4;">|</span>
-            <span style="color: var(--neon-cyan);">Ping: <span id="ping-val">12</span>ms</span>
+            <span id="status-text">Authentication Success</span>
         </div>
 
         <img class="logo-header" src="ART WIFI HOTSPOT LOGO.png" alt="ART WIFI LOGO">
 
         <div class="form-title-container">
-            <h1 class="form-title">⚡ VOUCHER STATUS ⚡</h1>
+            <h1 class="form-title">⚡ SESSION STATUS ⚡</h1>
         </div>
-
-        <div class="timer-box" id="time-remaining">00:00:00</div>
 
         <div class="info-group">
             <div class="info-row">
-                <span class="info-label">MAC Address:</span>
-                <span class="info-value" id="client-mac">NOT_AVAILABLE</span>
+                <span class="info-label">User Name:</span>
+                <span class="info-value" id="val-username">--</span>
             </div>
             <div class="info-row">
-                <span class="info-label">Voucher Code:</span>
-                <span class="info-value" id="voucher-display">INPUT CODE BELOW</span>
+                <span class="info-label">IP Address:</span>
+                <span class="info-value" id="val-ip">--</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Uptime:</span>
+                <span class="info-value" id="val-uptime">0s</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Used Time:</span>
+                <span class="info-value" id="val-used">0s</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Remaining Time:</span>
+                <span class="info-value" id="val-remaining" style="color: var(--neon-cyan);">00:00:00</span>
             </div>
         </div>
 
-        <!-- Manual Voucher Input Section -->
-        <div class="manual-box" id="manual-box">
-            <input type="text" id="voucher-input" class="voucher-input" placeholder="ENTER VOUCHER CODE" autocomplete="off">
-            <button id="check-btn" class="check-btn">CHECK REMAINING TIME</button>
-        </div>
-        <a href="#" id="manual-toggle" style="display:none; color: var(--neon-cyan); font-size: 11px; text-decoration: underline; margin-top: 6px; text-align: center;">Mag-type ng ibang voucher code</a>
+        <button id="logout-btn" class="logout-btn">Log Out</button>
 
         <span id="oper-hint">💡 Huwag i-close ang tab na ito para tuloy-tuloy ang iyong koneksyon.</span>
     </div>
 </div>
 
 <script>
-    // Nakaturo na sa Render Web Service URL mo
     var API_URL = "https://art-wifi-bridge.onrender.com";
     var clientMac = "NOT_AVAILABLE";
     var apMac = "";
     var ssidName = "";
     var cliToken = "";
+    var redirectUrl = "";
+    
+    var uptimeSeconds = 0;
+    var usedSeconds = 0;
     var remainingSeconds = 0;
-    var timerInterval = null;
     var syncInterval = null;
+    var clockInterval = null;
 
-    // Kunin ang query parameters o localStorage
     function parseURLParams() {
         var params = new URLSearchParams(window.location.search);
-        clientMac = params.get('clientMac') || params.get('mac') || params.get('id') || 'NOT_AVAILABLE';
-        var voucherParam = params.get('voucher') || params.get('username') || '';
+        clientMac = params.get('clientMac') || params.get('mac') || params.get('id') || localStorage.getItem('art_wifi_mac') || 'NOT_AVAILABLE';
+        var usernameParam = params.get('username') || params.get('voucher') || localStorage.getItem('art_wifi_username') || '--';
 
-        // Mga bagong parameter mula sa Omada Portal pagkatapos mag-authenticate —
-        // ito ang gagamitin natin para makuha ang EKSAKTONG remaining time.
         apMac = params.get('apMac') || localStorage.getItem('art_wifi_apMac') || '';
         ssidName = params.get('ssidName') || params.get('ssid') || localStorage.getItem('art_wifi_ssid') || '';
         cliToken = params.get('cliToken') || localStorage.getItem('art_wifi_cliToken') || '';
+        redirectUrl = params.get('redirectUrl') || '';
 
-        if (params.get('apMac')) localStorage.setItem('art_wifi_apMac', apMac);
-        if (params.get('ssidName') || params.get('ssid')) localStorage.setItem('art_wifi_ssid', ssidName);
-        if (params.get('cliToken')) localStorage.setItem('art_wifi_cliToken', cliToken);
+        if (clientMac !== 'NOT_AVAILABLE') localStorage.setItem('art_wifi_mac', clientMac);
+        if (apMac) localStorage.setItem('art_wifi_apMac', apMac);
+        if (ssidName) localStorage.setItem('art_wifi_ssid', ssidName);
+        if (cliToken) localStorage.setItem('art_wifi_cliToken', cliToken);
+        if (usernameParam && usernameParam !== '--') localStorage.setItem('art_wifi_username', usernameParam);
 
+        document.getElementById('val-username').innerText = usernameParam;
         if (clientMac !== 'NOT_AVAILABLE') {
-            document.getElementById('client-mac').innerText = clientMac;
-            localStorage.setItem('art_wifi_mac', clientMac);
-        } else {
-            let savedMac = localStorage.getItem('art_wifi_mac');
-            if (savedMac) clientMac = savedMac;
-        }
-        
-        if (voucherParam) {
-            document.getElementById('voucher-display').innerText = voucherParam;
-            document.getElementById('voucher-input').value = voucherParam;
-            localStorage.setItem('art_wifi_voucher', voucherParam);
-        } else {
-            let savedVoucher = localStorage.getItem('art_wifi_voucher');
-            if (savedVoucher) {
-                document.getElementById('voucher-display').innerText = savedVoucher;
-                // Sadyang hindi na inilalagay sa voucher-input para laging malinis/blangko
-                // ang text box tuwing binubuksan ang page nang walang URL param.
-            }
+            // Pansamantalang ilagay habang nag-aantay sa server response
+            document.getElementById('val-ip').innerText = "Detecting...";
         }
     }
 
-    function formatTime(seconds) {
-        if (seconds <= 0) return "00:00:00";
-        var hrs = Math.floor(seconds / 3600);
-        var mins = Math.floor((seconds % 3600) / 60);
-        var secs = seconds % 60;
+    function formatDuration(totalSeconds) {
+        if (totalSeconds <= 0) return "0s";
+        var hrs = Math.floor(totalSeconds / 3600);
+        var mins = Math.floor((totalSeconds % 3600) / 60);
+        var secs = totalSeconds % 60;
+        
+        if (hrs > 0) {
+            return hrs + "h " + mins + "m " + secs + "s";
+        } else if (mins > 0) {
+            return mins + "m " + secs + "s";
+        } else {
+            return secs + "s";
+        }
+    }
+
+    function formatCountdown(totalSeconds) {
+        if (totalSeconds <= 0) return "00:00:00";
+        var hrs = Math.floor(totalSeconds / 3600);
+        var mins = Math.floor((totalSeconds % 3600) / 60);
+        var secs = totalSeconds % 60;
 
         return (hrs < 10 ? "0" + hrs : hrs) + ":" + 
                (mins < 10 ? "0" + mins : mins) + ":" + 
                (secs < 10 ? "0" + secs : secs);
     }
 
-    function startLocalCountdown() {
-        if (timerInterval) clearInterval(timerInterval);
+    function startLiveClocks() {
+        if (clockInterval) clearInterval(clockInterval);
 
-        timerInterval = setInterval(function() {
+        clockInterval = setInterval(function() {
+            uptimeSeconds++;
+            usedSeconds++;
             if (remainingSeconds > 0) {
                 remainingSeconds--;
-                document.getElementById("time-remaining").innerText = formatTime(remainingSeconds);
-                document.getElementById("status-text").innerText = "CONNECTED";
-                document.getElementById("time-remaining").style.color = "var(--neon-cyan)";
-            } else {
-                document.getElementById("time-remaining").innerText = "EXPIRED";
-                document.getElementById("time-remaining").style.color = "var(--danger-red)";
-                document.getElementById("status-text").innerText = "EXPIRED";
-                document.getElementById("status-text").style.color = "var(--danger-red)";
+            }
+
+            document.getElementById('val-uptime').innerText = formatDuration(uptimeSeconds);
+            document.getElementById('val-used').innerText = formatDuration(usedSeconds);
+            document.getElementById('val-remaining').innerText = formatCountdown(remainingSeconds);
+
+            if (remainingSeconds <= 0) {
+                document.getElementById('val-remaining').innerText = "EXPIRED";
+                document.getElementById('val-remaining').style.color = "var(--danger-red)";
+                document.getElementById('status-text').innerText = "Session Expired";
             }
         }, 1000);
     }
 
-    // Function para i-check ang time gamit ang MAC o Voucher Code
-    async function checkVoucherOnServer(code = "", showAlert = false) {
+    async function fetchSessionStatus() {
         try {
             let requestUrl = `${API_URL}/api/check-time?`;
             let params = [];
 
-            if (clientMac && clientMac !== 'NOT_AVAILABLE') {
-                params.push(`mac=${encodeURIComponent(clientMac)}`);
-            }
-            if (code) {
-                params.push(`voucher=${encodeURIComponent(code)}`);
-                params.push(`username=${encodeURIComponent(code)}`);
-            }
-            // Mga bagong parameter para sa EKSAKTONG live session check
+            if (clientMac && clientMac !== 'NOT_AVAILABLE') params.push(`mac=${encodeURIComponent(clientMac)}`);
             if (apMac) params.push(`apMac=${encodeURIComponent(apMac)}`);
             if (ssidName) params.push(`ssidName=${encodeURIComponent(ssidName)}`);
             if (cliToken) params.push(`cliToken=${encodeURIComponent(cliToken)}`);
 
-            requestUrl += params.join('&');
-
-            let res = await fetch(requestUrl);
+            let res = await fetch(requestUrl + params.join('&'));
             let data = await res.json();
 
             if (data.success) {
-                remainingSeconds = data.remainingSeconds;
-                if (data.mac && data.mac !== 'NOT_AVAILABLE') {
-                    clientMac = data.mac;
-                    document.getElementById('client-mac').innerText = clientMac;
-                    localStorage.setItem('art_wifi_mac', clientMac);
+                if (data.ip) document.getElementById('val-ip').innerText = data.ip;
+                if (data.voucherCode && data.voucherCode !== 'ACTIVE') {
+                    document.getElementById('val-username').innerText = data.voucherCode;
+                    localStorage.setItem('art_wifi_username', data.voucherCode);
                 }
-                if (code) {
-                    document.getElementById('voucher-display').innerText = code;
-                    localStorage.setItem('art_wifi_voucher', code);
-                } else if (data.voucherCode && data.voucherCode !== 'ACTIVE') {
-                    // Wala kaming ni-type na code, pero nagbalik ang server ng
-                    // voucher code base sa auto-detected na session — ipakita 'yon.
-                    document.getElementById('voucher-display').innerText = data.voucherCode;
-                    localStorage.setItem('art_wifi_voucher', data.voucherCode);
+                if (typeof data.remainingSeconds !== 'undefined') {
+                    remainingSeconds = data.remainingSeconds;
                 }
-                startLocalCountdown();
-                if (showAlert) alert("Tagumpay! Na-sync ang session time.");
-                return true;
-            } else {
-                if (showAlert) alert("Hindi mahanap ang active session o invalid ang voucher code.");
-                return false;
+                if (typeof data.uptime !== 'undefined') {
+                    uptimeSeconds = data.uptime;
+                } else if (uptimeSeconds === 0) {
+                    uptimeSeconds = 1; // fallback kung wala pa
+                }
+                if (typeof data.usedTime !== 'undefined') {
+                    usedSeconds = data.usedTime;
+                } else if (usedSeconds === 0) {
+                    usedSeconds = uptimeSeconds;
+                }
             }
         } catch (err) {
-            console.log("Server sync failed:", err);
-            if (showAlert) alert("Nagkaproblema sa pagkonekta sa server.");
-            return false;
+            console.log("Sync error:", err);
         }
     }
 
-    // Button Click Event para sa Manual Input
-    document.getElementById('check-btn').addEventListener('click', function() {
-        var code = document.getElementById('voucher-input').value.trim();
-        if (!code) {
-            alert("Mangyaring maglagay muna ng voucher code.");
-            return;
+    // Log Out button action (tumatawag sa Omada logout o nagre-redirect pabalik)
+    document.getElementById('logout-btn').addEventListener('click', async function() {
+        if (confirm("Sigurado ka bang gusto mong mag-log out sa Wi-Fi?")) {
+            try {
+                // Subukang tawagin ang logout endpoint sa server kung mayroon man, o direktang i-clear
+                let logoutUrl = `${API_URL}/api/logout?mac=${encodeURIComponent(clientMac)}`;
+                if (apMac) logoutUrl += `&apMac=${encodeURIComponent(apMac)}`;
+                if (ssidName) logoutUrl += `&ssidName=${encodeURIComponent(ssidName)}`;
+                if (cliToken) logoutUrl += `&cliToken=${encodeURIComponent(cliToken)}`;
+                await fetch(logoutUrl).catch(e => {});
+            } catch(e) {}
+            
+            localStorage.clear();
+            alert("Nakabawas o naka-log out ka na sa network.");
+            window.location.reload();
         }
-        checkVoucherOnServer(code, true);
     });
-
-    // Enter key support sa input box
-    document.getElementById('voucher-input').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            document.getElementById('check-btn').click();
-        }
-    });
-
-    // "Mag-type ng ibang voucher code" toggle link — ipinapakita lang kapag
-    // auto-detect ang ginamit, kung sakaling gusto pa ring mag-type manually.
-    document.getElementById('manual-toggle').addEventListener('click', function(e) {
-        e.preventDefault();
-        document.getElementById('manual-box').style.display = 'block';
-        this.style.display = 'none';
-    });
-
-    // Simulated ping animation
-    setInterval(function() {
-        var randomPing = Math.floor(Math.random() * (22 - 8 + 1)) + 8;
-        var pingEl = document.getElementById("ping-val");
-        if(pingEl) pingEl.innerText = randomPing;
-    }, 4000);
 
     window.addEventListener("DOMContentLoaded", async function() {
         parseURLParams();
+        startLiveClocks();
+        
+        await fetchSessionStatus();
 
-        // Kung galing sa AKTWAL na Omada redirect (may cliToken), awtomatiko na
-        // itong mag-sy-sync — hindi na kailangang mag-type ng voucher code.
-        var hasLiveSession = !!(clientMac && clientMac !== 'NOT_AVAILABLE' && apMac && ssidName && cliToken);
-
-        if (hasLiveSession) {
-            document.getElementById('manual-box').style.display = 'none';
-            document.getElementById('manual-toggle').style.display = 'block';
-        }
-
-        let currentVoucher = document.getElementById('voucher-input').value.trim();
-        // Subukang mag-sync agad pagka-buklod ng page
-        await checkVoucherOnServer(currentVoucher, false);
-
-        // Background auto-sync tuwing 10 segundo para laging updated ang oras mula sa Omada
+        // Background auto-sync bawat 10 segundo
         if (syncInterval) clearInterval(syncInterval);
-        syncInterval = setInterval(function() {
-            let activeVoucher = document.getElementById('voucher-input').value.trim();
-            checkVoucherOnServer(activeVoucher, false);
-        }, 10000);
+        syncInterval = setInterval(fetchSessionStatus, 10000);
     });
 </script>
 </body>
