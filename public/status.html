@@ -11,7 +11,6 @@
             --neon-cyan: #00f0ff;
             --neon-green: #00ff88;
             --danger-red: #ff3333;
-            --gold-yellow: #fbc02d;
             --dark-card: #0d1b3e;
             --border-radius: 16px;
             --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -63,13 +62,6 @@
             flex-direction: column;
             justify-content: center;
             box-sizing: border-box;
-            animation: cardBreathingGlow 4s infinite ease-in-out;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        @keyframes cardBreathingGlow {
-            0%, 100% { border-color: rgba(0, 240, 255, 0.4); box-shadow: 0 0 15px rgba(0, 240, 255, 0.2); }
-            50% { border-color: rgba(0, 240, 255, 0.85); box-shadow: 0 0 25px rgba(0, 240, 255, 0.4); }
         }
 
         .network-status-badge {
@@ -85,7 +77,6 @@
             padding: 4px 12px;
             margin-bottom: 10px;
             color: #ffffff;
-            letter-spacing: 0.5px;
         }
 
         .status-dot {
@@ -94,12 +85,6 @@
             background-color: var(--neon-green);
             border-radius: 50%;
             box-shadow: 0 0 6px var(--neon-green);
-            animation: blinkDot 1.5s infinite ease-in-out;
-        }
-
-        @keyframes blinkDot {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.4; transform: scale(0.85); }
         }
 
         .logo-header {
@@ -107,12 +92,6 @@
             max-width: 110px; 
             margin: 0 auto 6px auto; 
             display: block;
-            animation: bounceLogo 2.5s infinite ease-in-out;
-        }
-
-        @keyframes bounceLogo {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-4px); }
         }
 
         .form-title-container {
@@ -122,7 +101,6 @@
             margin: 2px auto 8px auto;
             overflow: hidden;
             background: rgba(0, 240, 255, 0.03);
-            box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
             padding: 5px 8px;
             box-sizing: border-box;
         }
@@ -134,7 +112,6 @@
             color: #ffffff;
             text-transform: uppercase; 
             letter-spacing: 1px;
-            text-shadow: 0 0 8px var(--neon-cyan);
             text-align: center;
         }
 
@@ -175,15 +152,7 @@
             border: none;
             cursor: pointer;
             font-size: 14px;
-            letter-spacing: 1px;
             margin-top: 12px;
-            box-shadow: 0 0 12px rgba(255, 51, 51, 0.4);
-            transition: 0.2s;
-        }
-
-        .logout-btn:active {
-            transform: scale(0.98);
-            opacity: 0.9;
         }
 
         #oper-hint { 
@@ -192,7 +161,6 @@
             font-weight: 600; 
             margin-top: 8px; 
             display: block; 
-            line-height: 1.3;
             background: rgba(0, 240, 255, 0.05);
             border: 1px dashed rgba(0, 240, 255, 0.3);
             padding: 5px 8px;
@@ -207,7 +175,7 @@
     <div class="main-card">
         <div class="network-status-badge">
             <span class="status-dot"></span>
-            <span id="status-text">Authentication Success</span>
+            <span id="status-text">Fetching Session...</span>
         </div>
 
         <img class="logo-header" src="ART WIFI HOTSPOT LOGO.png" alt="ART WIFI LOGO">
@@ -219,11 +187,11 @@
         <div class="info-group">
             <div class="info-row">
                 <span class="info-label">User Name:</span>
-                <span class="info-value" id="val-username">--</span>
+                <span class="info-value" id="val-username">Detecting...</span>
             </div>
             <div class="info-row">
                 <span class="info-label">IP Address:</span>
-                <span class="info-value" id="val-ip">--</span>
+                <span class="info-value" id="val-ip">Detecting...</span>
             </div>
             <div class="info-row">
                 <span class="info-label">Uptime:</span>
@@ -247,38 +215,29 @@
 
 <script>
     var API_URL = "https://art-wifi-bridge.onrender.com";
-    var clientMac = "NOT_AVAILABLE";
+    var clientMac = "";
     var apMac = "";
     var ssidName = "";
     var cliToken = "";
-    var redirectUrl = "";
     
     var uptimeSeconds = 0;
     var usedSeconds = 0;
     var remainingSeconds = 0;
-    var syncInterval = null;
     var clockInterval = null;
+    var syncInterval = null;
+    var isTimerRunning = false;
 
     function parseURLParams() {
         var params = new URLSearchParams(window.location.search);
-        clientMac = params.get('clientMac') || params.get('mac') || params.get('id') || localStorage.getItem('art_wifi_mac') || 'NOT_AVAILABLE';
-        var usernameParam = params.get('username') || params.get('voucher') || localStorage.getItem('art_wifi_username') || '--';
+        clientMac = params.get('clientMac') || params.get('mac') || params.get('id') || '';
+        var usernameParam = params.get('username') || params.get('voucher') || '';
 
-        apMac = params.get('apMac') || localStorage.getItem('art_wifi_apMac') || '';
-        ssidName = params.get('ssidName') || params.get('ssid') || localStorage.getItem('art_wifi_ssid') || '';
-        cliToken = params.get('cliToken') || localStorage.getItem('art_wifi_cliToken') || '';
-        redirectUrl = params.get('redirectUrl') || '';
+        apMac = params.get('apMac') || '';
+        ssidName = params.get('ssidName') || params.get('ssid') || '';
+        cliToken = params.get('cliToken') || '';
 
-        if (clientMac !== 'NOT_AVAILABLE') localStorage.setItem('art_wifi_mac', clientMac);
-        if (apMac) localStorage.setItem('art_wifi_apMac', apMac);
-        if (ssidName) localStorage.setItem('art_wifi_ssid', ssidName);
-        if (cliToken) localStorage.setItem('art_wifi_cliToken', cliToken);
-        if (usernameParam && usernameParam !== '--') localStorage.setItem('art_wifi_username', usernameParam);
-
-        document.getElementById('val-username').innerText = usernameParam;
-        if (clientMac !== 'NOT_AVAILABLE') {
-            // Pansamantalang ilagay habang nag-aantay sa server response
-            document.getElementById('val-ip').innerText = "Detecting...";
+        if (usernameParam) {
+            document.getElementById('val-username').innerText = usernameParam;
         }
     }
 
@@ -288,13 +247,9 @@
         var mins = Math.floor((totalSeconds % 3600) / 60);
         var secs = totalSeconds % 60;
         
-        if (hrs > 0) {
-            return hrs + "h " + mins + "m " + secs + "s";
-        } else if (mins > 0) {
-            return mins + "m " + secs + "s";
-        } else {
-            return secs + "s";
-        }
+        if (hrs > 0) return hrs + "h " + mins + "m " + secs + "s";
+        if (mins > 0) return mins + "m " + secs + "s";
+        return secs + "s";
     }
 
     function formatCountdown(totalSeconds) {
@@ -312,6 +267,8 @@
         if (clockInterval) clearInterval(clockInterval);
 
         clockInterval = setInterval(function() {
+            if (!isTimerRunning) return;
+
             uptimeSeconds++;
             usedSeconds++;
             if (remainingSeconds > 0) {
@@ -335,7 +292,7 @@
             let requestUrl = `${API_URL}/api/check-time?`;
             let params = [];
 
-            if (clientMac && clientMac !== 'NOT_AVAILABLE') params.push(`mac=${encodeURIComponent(clientMac)}`);
+            if (clientMac) params.push(`mac=${encodeURIComponent(clientMac)}`);
             if (apMac) params.push(`apMac=${encodeURIComponent(apMac)}`);
             if (ssidName) params.push(`ssidName=${encodeURIComponent(ssidName)}`);
             if (cliToken) params.push(`cliToken=${encodeURIComponent(cliToken)}`);
@@ -345,34 +302,35 @@
 
             if (data.success) {
                 if (data.ip) document.getElementById('val-ip').innerText = data.ip;
+                if (data.mac && !clientMac) clientMac = data.mac;
                 if (data.voucherCode && data.voucherCode !== 'ACTIVE') {
                     document.getElementById('val-username').innerText = data.voucherCode;
-                    localStorage.setItem('art_wifi_username', data.voucherCode);
                 }
                 if (typeof data.remainingSeconds !== 'undefined') {
                     remainingSeconds = data.remainingSeconds;
                 }
                 if (typeof data.uptime !== 'undefined') {
                     uptimeSeconds = data.uptime;
-                } else if (uptimeSeconds === 0) {
-                    uptimeSeconds = 1; // fallback kung wala pa
                 }
                 if (typeof data.usedTime !== 'undefined') {
                     usedSeconds = data.usedTime;
-                } else if (usedSeconds === 0) {
-                    usedSeconds = uptimeSeconds;
                 }
+
+                document.getElementById('status-text').innerText = "Authentication Success";
+                isTimerRunning = true;
+            } else {
+                document.getElementById('val-username').innerText = "No Active Session";
+                document.getElementById('val-ip').innerText = "N/A";
+                document.getElementById('status-text').innerText = "Waiting for Connection";
             }
         } catch (err) {
             console.log("Sync error:", err);
         }
     }
 
-    // Log Out button action (tumatawag sa Omada logout o nagre-redirect pabalik)
     document.getElementById('logout-btn').addEventListener('click', async function() {
         if (confirm("Sigurado ka bang gusto mong mag-log out sa Wi-Fi?")) {
             try {
-                // Subukang tawagin ang logout endpoint sa server kung mayroon man, o direktang i-clear
                 let logoutUrl = `${API_URL}/api/logout?mac=${encodeURIComponent(clientMac)}`;
                 if (apMac) logoutUrl += `&apMac=${encodeURIComponent(apMac)}`;
                 if (ssidName) logoutUrl += `&ssidName=${encodeURIComponent(ssidName)}`;
@@ -380,8 +338,7 @@
                 await fetch(logoutUrl).catch(e => {});
             } catch(e) {}
             
-            localStorage.clear();
-            alert("Nakabawas o naka-log out ka na sa network.");
+            alert("Naka-log out ka na sa network.");
             window.location.reload();
         }
     });
@@ -389,10 +346,8 @@
     window.addEventListener("DOMContentLoaded", async function() {
         parseURLParams();
         startLiveClocks();
-        
         await fetchSessionStatus();
 
-        // Background auto-sync bawat 10 segundo
         if (syncInterval) clearInterval(syncInterval);
         syncInterval = setInterval(fetchSessionStatus, 10000);
     });
