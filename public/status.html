@@ -267,10 +267,11 @@
         </div>
 
         <!-- Manual Voucher Input Section -->
-        <div class="manual-box">
+        <div class="manual-box" id="manual-box">
             <input type="text" id="voucher-input" class="voucher-input" placeholder="ENTER VOUCHER CODE" autocomplete="off">
             <button id="check-btn" class="check-btn">CHECK REMAINING TIME</button>
         </div>
+        <a href="#" id="manual-toggle" style="display:none; color: var(--neon-cyan); font-size: 11px; text-decoration: underline; margin-top: 6px; text-align: center;">Mag-type ng ibang voucher code</a>
 
         <span id="oper-hint">💡 Huwag i-close ang tab na ito para tuloy-tuloy ang iyong koneksyon.</span>
     </div>
@@ -387,6 +388,11 @@
                 if (code) {
                     document.getElementById('voucher-display').innerText = code;
                     localStorage.setItem('art_wifi_voucher', code);
+                } else if (data.voucherCode && data.voucherCode !== 'ACTIVE') {
+                    // Wala kaming ni-type na code, pero nagbalik ang server ng
+                    // voucher code base sa auto-detected na session — ipakita 'yon.
+                    document.getElementById('voucher-display').innerText = data.voucherCode;
+                    localStorage.setItem('art_wifi_voucher', data.voucherCode);
                 }
                 startLocalCountdown();
                 if (showAlert) alert("Tagumpay! Na-sync ang session time.");
@@ -419,6 +425,14 @@
         }
     });
 
+    // "Mag-type ng ibang voucher code" toggle link — ipinapakita lang kapag
+    // auto-detect ang ginamit, kung sakaling gusto pa ring mag-type manually.
+    document.getElementById('manual-toggle').addEventListener('click', function(e) {
+        e.preventDefault();
+        document.getElementById('manual-box').style.display = 'block';
+        this.style.display = 'none';
+    });
+
     // Simulated ping animation
     setInterval(function() {
         var randomPing = Math.floor(Math.random() * (22 - 8 + 1)) + 8;
@@ -428,7 +442,16 @@
 
     window.addEventListener("DOMContentLoaded", async function() {
         parseURLParams();
-        
+
+        // Kung galing sa AKTWAL na Omada redirect (may cliToken), awtomatiko na
+        // itong mag-sy-sync — hindi na kailangang mag-type ng voucher code.
+        var hasLiveSession = !!(clientMac && clientMac !== 'NOT_AVAILABLE' && apMac && ssidName && cliToken);
+
+        if (hasLiveSession) {
+            document.getElementById('manual-box').style.display = 'none';
+            document.getElementById('manual-toggle').style.display = 'block';
+        }
+
         let currentVoucher = document.getElementById('voucher-input').value.trim();
         // Subukang mag-sync agad pagka-buklod ng page
         await checkVoucherOnServer(currentVoucher, false);
